@@ -41,8 +41,8 @@ SkillsBench allows you to measure how effectively an agent leverages procedural 
 
 ```bash
 # Clone the repository
-git clone https://github.com/mgechev/SkillEval.git
-cd SkillEval
+git clone https://github.com/mgechev/skill-eval.git
+cd skill-eval
 
 # Install dependencies
 pnpm install

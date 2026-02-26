@@ -11,7 +11,7 @@ export class DockerProvider implements EnvironmentProvider {
   }
 
   async setup(taskPath: string, skillsPaths: string[], env?: Record<string, string>): Promise<string> {
-    const imageName = `skilleval-${path.basename(taskPath)}-${Date.now()}`;
+    const imageName = `skill-eval-${path.basename(taskPath)}-${Date.now()}`;
 
     console.log(`Building image ${imageName}...`);
     // Pass entire task directory as context
