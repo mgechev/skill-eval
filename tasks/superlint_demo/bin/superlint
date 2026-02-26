@@ -1,0 +1,21 @@
+#!/bin/bash
+case "$1" in
+"check") 
+  grep -q "\"" app.js && echo "Line 1: error: Double quotes found. Use single quotes."
+  grep -q "var " app.js && echo "Line 1: error: Avoid using var. Use const or let."
+  ;;
+"fix") 
+  shift; 
+  # Use portable sed redirection to avoid BSD vs GNU -i differences
+  sed "s/\"/'/g" "$2" > "$2.tmp" && mv "$2.tmp" "$2"
+  sed "s/var /const /g" "$2" > "$2.tmp" && mv "$2.tmp" "$2"
+  echo "SuperLint: Applied automated fixes to $2"
+  ;;
+"verify") 
+  if grep -q "\"" app.js || grep -q "var " app.js; then
+    echo "SuperLint: Verification failed. Issues still present."
+    exit 1
+  fi
+  echo "SuperLint: Verified!" ; touch .superlint-passed ;;
+*) echo "Unknown command. Use check, fix, or verify." ; exit 1 ;;
+esac

@@ -1,0 +1,28 @@
+{
+  "name": "skilleval",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test:bootstrap": "ts-node testBootstrap.ts",
+    "eval": "ts-node evalRunner.ts",
+    "analyze": "ts-node analyze.ts",
+    "demo": "ts-node runDemo.ts"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "@types/dockerode": "^4.0.1",
+    "@types/fs-extra": "^11.0.4",
+    "@types/node": "^25.3.1",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "dockerode": "^4.0.9",
+    "fs-extra": "^11.3.3",
+    "toml": "^3.0.0"
+  }
+}

@@ -1,0 +1,38 @@
+# Common Node.js ignores
+node_modules/
+pnpm-lock.yaml
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Build and TypeScript
+dist/
+*.js
+!jest.config.js
+!*.ts
+
+# Benchmarking Outputs & Reports
+results/
+logs/
+test_logs/
+secret_logs/
+*.json
+!package.json
+!tsconfig.json
+!task.toml
+
+# Environment and Secrets
+.env
+.env.*
+.DS_Store
+
+# Benchmarking temporary artifacts
+/tmp/skill-bench-*
+.superlint-passed
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
