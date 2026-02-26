@@ -62,7 +62,7 @@ async function main() {
   if (withSkills) {
     // Look for a skill with the same name
     const skillName = taskArg.split('_')[0]; // basic heuristic
-    const skillPath = path.join(__dirname, 'skills', skillName);
+    const skillPath = path.join(taskPath, 'skills', skillName);
     if (await fs.pathExists(skillPath)) {
       skillsPaths.push(skillPath);
       console.log(`Including skill: ${skillName}`);

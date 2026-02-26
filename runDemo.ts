@@ -12,7 +12,7 @@ async function runDemo() {
   }
 
   const taskPath = path.join(__dirname, 'tasks', 'superlint_demo');
-  const skillPath = path.join(__dirname, 'skills', 'superlint');
+  const skillPath = path.join(taskPath, 'skills', 'superlint');
   const resultsDir = path.join(__dirname, 'results');
 
   const runner = new EvalRunner(new DockerProvider(), resultsDir);
