@@ -20,9 +20,15 @@ export class DockerProvider implements EnvironmentProvider {
       src: ['.']
     }, { t: imageName, dockerfile: 'environment/Dockerfile' });
 
-    await new Promise((resolve, reject) => {
-      this.docker.modem.followProgress(stream, (err, res) => err ? reject(err) : resolve(res));
+    const buildResult = await new Promise<any[]>((resolve, reject) => {
+      this.docker.modem.followProgress(stream, (err: Error | null, res: any[]) => err ? reject(err) : resolve(res));
     });
+
+    // Check for build errors in the result stream
+    const buildError = buildResult.find((item: any) => item.error || item.errorDetail);
+    if (buildError) {
+      throw new Error(`Docker build failed: ${buildError.error || buildError.errorDetail?.message || 'Unknown error'}`);
+    }
 
     const envPairs = env ? Object.entries(env).map(([k, v]) => `${k}=${v}`) : [];
 
@@ -37,7 +43,8 @@ export class DockerProvider implements EnvironmentProvider {
 
     // Inject skills
     const skillsDir = '/workspace/.agents/skills';
-    await container.exec({ Cmd: ['mkdir', '-p', skillsDir] });
+    const mkdirExec = await container.exec({ Cmd: ['mkdir', '-p', skillsDir], AttachStdout: true, AttachStderr: true });
+    await mkdirExec.start({});
 
     for (const skillPath of skillsPaths) {
       const content = await fs.readFile(skillPath);
@@ -58,10 +65,11 @@ export class DockerProvider implements EnvironmentProvider {
       Cmd: ['/bin/bash', '-c', command],
       AttachStdout: true,
       AttachStderr: true,
+      Tty: true,
       Env: envPairs
     });
 
-    const stream = await exec.start({});
+    const stream = await exec.start({ Tty: true });
     const output = await new Promise<string>((resolve, reject) => {
       let data = '';
       stream.on('data', (chunk) => data += chunk.toString());
