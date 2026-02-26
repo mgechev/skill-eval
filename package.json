@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "test:bootstrap": "ts-node testBootstrap.ts",
-    "eval": "ts-node evalRunner.ts",
+    "eval": "ts-node cli.ts",
     "analyze": "ts-node analyze.ts",
     "demo": "ts-node runDemo.ts"
   },

@@ -74,18 +74,17 @@ For guidance on writing high-quality skills, refer to the [Skills Best Practices
 
 ### Running Evaluations
 
-You can use the `EvalRunner` to execute evaluations with multiple trials and result persistence:
+You can now run evaluations dynamically using the CLI:
 
-```typescript
-import { EvalRunner, LocalProvider } from './core';
+```bash
+# Basic evaluation (Gemini Agent, Docker Provider, 5 trials)
+pnpm run eval superlint
 
-const provider = new LocalProvider();
-const runner = new EvalRunner(provider, './results'); // Logs saved to ./results
+# Custom configuration (Claude Agent, Local Provider, 3 trials)
+pnpm run eval superlint --agent=claude --provider=local --trials=3
 
-// Run 5 trials of a task
-const report = await runner.runEval(agent, './tasks/my_task', ['./skills/my_skill'], 5);
-
-console.log(`Pass Rate: ${report.pass_rate}`);
+# Include associated skills
+pnpm run eval superlint --with-skills
 ```
 
 ### Multi-Trial Logic
