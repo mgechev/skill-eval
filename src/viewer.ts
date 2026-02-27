@@ -55,7 +55,7 @@ function renderIndex(reports: any[]): string {
             <td class="mono">${r.file}</td>
         </tr>`).join('');
 
-    return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>SkillsBench Transcript Viewer</title>
+    return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Skill Eval Transcript Viewer</title>
 <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0a0a0a; color: #e0e0e0; padding: 2rem; }
@@ -67,7 +67,7 @@ function renderIndex(reports: any[]): string {
     .mono { font-family: monospace; font-size: 0.8rem; color: #888; }
     tr:hover { background: #111122; }
 </style></head><body>
-<h1>📊 SkillsBench Transcript Viewer</h1>
+<h1>📊 Skill Eval Transcript Viewer</h1>
 <table>
     <tr><th>Task</th><th>Pass Rate</th><th>Trials</th><th>Skills</th><th>pass@k</th><th>pass^k</th><th>File</th></tr>
     ${rows}

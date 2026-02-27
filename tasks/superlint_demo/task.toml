@@ -1,7 +1,7 @@
 version = "1.0"
 
 [metadata]
-author_name = "SkillsBench Core"
+author_name = "Skill Eval Core"
 author_email = "mgechev@example.com"
 difficulty = "hard"
 category = "workflow-compliance"

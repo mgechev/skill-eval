@@ -18,7 +18,7 @@ async function main() {
 
         const stats = engine.aggregate(reports);
 
-        console.log('\n--- SkillsBench Analytics Summary ---');
+        console.log('\n--- Skill Eval Analytics Summary ---');
         console.table(stats.map(s => ({
             Task: s.task,
             'Pass Rate (No Skill)': (s.passRateNoSkill * 100).toFixed(1) + '%',

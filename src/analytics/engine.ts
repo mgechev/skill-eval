@@ -12,7 +12,7 @@ export interface AggregateStats {
 }
 
 /**
- * Calculates Normalized Gain (NG) as defined in the SkillsBench paper.
+ * Calculates Normalized Gain (NG) as defined in the Skill Eval paper.
  * NG = (p_with - p_without) / (1 - p_without)
  */
 export function calculateNormalizedGain(pWith: number, pWithout: number): number {
