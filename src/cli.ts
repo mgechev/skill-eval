@@ -147,16 +147,19 @@ async function main() {
                     Reward: t.reward.toFixed(2),
                     Duration: (t.duration_ms / 1000).toFixed(1) + 's',
                     Commands: t.n_commands,
+                    'Tokens (in/out)': `~${t.input_tokens}/${t.output_tokens}`,
                     Graders: t.grader_results.map(g => `${g.grader_type}:${g.score.toFixed(1)}`).join(' ')
                 })));
 
                 // Summary
                 const avgDur = report.trials.reduce((s, t) => s + t.duration_ms, 0) / report.trials.length;
                 const avgCmds = report.trials.reduce((s, t) => s + t.n_commands, 0) / report.trials.length;
+                const totalTokens = report.trials.reduce((s, t) => s + t.input_tokens + t.output_tokens, 0);
                 console.log(`  Pass Rate   ${(report.pass_rate * 100).toFixed(1)}%`);
                 console.log(`  pass@${trials}      ${(report.pass_at_k * 100).toFixed(1)}%`);
                 console.log(`  pass^${trials}      ${(report.pass_pow_k * 100).toFixed(1)}%`);
                 console.log(`  Avg Duration ${(avgDur / 1000).toFixed(1)}s | Avg Commands ${avgCmds.toFixed(1)}`);
+                console.log(`  Total Tokens ~${totalTokens} (estimated)`);
                 console.log(`  Skills      ${report.skills_used.length > 0 ? report.skills_used.join(', ') : 'none'}`);
                 console.log(`  Saved to    ${resultsDir}\n`);
             } catch (err) {

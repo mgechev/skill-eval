@@ -60,6 +60,11 @@ function calculatePassPowK(n: number, c: number, k: number): number {
     return Math.pow(p, k);
 }
 
+/** Estimate token count from text (~4 chars per token, standard GPT heuristic) */
+function estimateTokens(text: string): number {
+    return Math.ceil(text.length / 4);
+}
+
 export class EvalRunner {
     private provider: EnvironmentProvider;
     private logDir?: string;
@@ -221,8 +226,15 @@ export class EvalRunner {
             });
 
             const duration_ms = Date.now() - startTime;
+
+            // Estimate tokens from session log
+            const input_tokens = estimateTokens(instruction);
+            const output_tokens = sessionLog
+                .filter(e => e.type === 'agent_result' || e.type === 'command')
+                .reduce((sum, e) => sum + estimateTokens((e.output || '') + (e.stdout || '') + (e.stderr || '')), 0);
+
             const status = reward >= 0.5 ? '✓' : '✗';
-            console.log(`${status} reward=${reward.toFixed(2)} (${(duration_ms / 1000).toFixed(1)}s, ${commandCount} cmds)`);
+            console.log(`${status} reward=${reward.toFixed(2)} (${(duration_ms / 1000).toFixed(1)}s, ${commandCount} cmds, ~${input_tokens + output_tokens} tokens)`);
 
             return {
                 trial_id: index + 1,
@@ -230,6 +242,8 @@ export class EvalRunner {
                 grader_results: graderResults,
                 duration_ms,
                 n_commands: commandCount,
+                input_tokens,
+                output_tokens,
                 session_log: sessionLog
             };
         } catch (err: any) {
@@ -250,6 +264,8 @@ export class EvalRunner {
                 grader_results: [],
                 duration_ms,
                 n_commands: commandCount,
+                input_tokens: 0,
+                output_tokens: 0,
                 session_log: sessionLog
             };
         } finally {

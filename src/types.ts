@@ -59,6 +59,8 @@ export interface TrialResult {
     grader_results: GraderResult[];
     duration_ms: number;
     n_commands: number;
+    input_tokens: number;     // estimated from instruction length
+    output_tokens: number;    // estimated from agent output
     session_log: LogEntry[];
 }
 
