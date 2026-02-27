@@ -82,12 +82,12 @@ category = "workflow-compliance"
 tags = ["example"]
 
 [agent]
-timeout_sec = 120.0
+timeout_sec = 300.0
 
 [environment]
-build_timeout_sec = 120.0
-cpus = 1
-memory_mb = 1024
+build_timeout_sec = 180.0
+cpus = 2
+memory_mb = 2048
 storage_mb = 500
 
 [[graders]]

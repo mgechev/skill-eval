@@ -6,10 +6,11 @@ export class GeminiAgent extends BaseAgent {
         _workspacePath: string,
         runCommand: (cmd: string) => Promise<CommandResult>
     ): Promise<string> {
-        console.log('GeminiAgent: Initiating Gemini CLI...');
+        // Write instruction to a temp file to avoid shell escaping issues with long prompts
+        const b64 = Buffer.from(instruction).toString('base64');
+        await runCommand(`echo '${b64}' | base64 -d > /tmp/.prompt.md`);
 
-        const escaped = instruction.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/`/g, '\\`').replace(/\$/g, '\\$');
-        const command = `gemini -y --sandbox=none -p "${escaped}"`;
+        const command = `gemini -y --sandbox=none -p "$(cat /tmp/.prompt.md)"`;
         const result = await runCommand(command);
 
         if (result.exitCode !== 0) {

@@ -6,11 +6,12 @@ export class ClaudeAgent extends BaseAgent {
         _workspacePath: string,
         runCommand: (cmd: string) => Promise<CommandResult>
     ): Promise<string> {
-        console.log('ClaudeAgent: Initiating Claude Code...');
+        // Write instruction to a temp file to avoid shell escaping issues with long prompts
+        const b64 = Buffer.from(instruction).toString('base64');
+        await runCommand(`echo '${b64}' | base64 -d > /tmp/.prompt.md`);
 
-        const escaped = instruction.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/`/g, '\\`').replace(/\$/g, '\\$');
-        const claudeCommand = `claude "${escaped}" --yes --no-auto-update`;
-        const result = await runCommand(claudeCommand);
+        const command = `claude "$(cat /tmp/.prompt.md)" --yes --no-auto-update`;
+        const result = await runCommand(command);
 
         if (result.exitCode !== 0) {
             console.error('ClaudeAgent: Claude failed to execute correctly.');
