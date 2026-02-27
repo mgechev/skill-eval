@@ -6,6 +6,7 @@ import { EnvironmentProvider, CommandResult, TaskConfig } from '../types';
 
 export class DockerProvider implements EnvironmentProvider {
     private docker: Docker;
+    private imageRefCounts: Map<string, number> = new Map();
 
     constructor() {
         this.docker = new Docker();
@@ -14,7 +15,6 @@ export class DockerProvider implements EnvironmentProvider {
     async setup(taskPath: string, skillsPaths: string[], taskConfig: TaskConfig, env?: Record<string, string>): Promise<string> {
         const imageName = `skill-eval-${path.basename(taskPath)}-${Date.now()}`;
 
-        console.log(`Building image ${imageName}...`);
         const stream = await this.docker.buildImage({
             context: taskPath,
             src: ['.']
@@ -43,6 +43,9 @@ export class DockerProvider implements EnvironmentProvider {
         });
 
         await container.start();
+
+        // Track image reference count for safe cleanup
+        this.imageRefCounts.set(imageName, (this.imageRefCounts.get(imageName) || 0) + 1);
 
         // Inject skills into agent discovery paths
         if (skillsPaths.length > 0) {
@@ -136,33 +139,38 @@ export class DockerProvider implements EnvironmentProvider {
 
     async cleanup(containerId: string): Promise<void> {
         const container = this.docker.getContainer(containerId);
-        let imageId: string | undefined;
+        let imageName: string | undefined;
 
+        // Get the image name before killing the container
         try {
             const info = await container.inspect();
-            imageId = info.Image;
+            // info.Config.Image has the image name (not sha), info.Image has the sha
+            imageName = info.Config?.Image || undefined;
         } catch (e) {
-            console.warn(`Failed to inspect container ${containerId}: ${e}`);
+            // Container already gone
         }
 
+        // Force-kill then remove (handles timed-out containers still running)
         try {
-            await container.stop();
-        } catch (e) {
-            // Container may already be stopped
-        }
-
-        try {
+            await container.kill().catch(() => { });  // kill if running
             await container.remove({ force: true });
         } catch (e) {
-            console.warn(`Failed to remove container ${containerId}: ${e}`);
+            // Already removed
         }
 
-        if (imageId) {
-            try {
-                const image = this.docker.getImage(imageId);
-                await image.remove({ force: true });
-            } catch (e) {
-                console.warn(`Failed to remove image ${imageId}: ${e}`);
+        // Only remove the image when no other containers reference it
+        if (imageName) {
+            const remaining = (this.imageRefCounts.get(imageName) || 1) - 1;
+            this.imageRefCounts.set(imageName, remaining);
+
+            if (remaining <= 0) {
+                this.imageRefCounts.delete(imageName);
+                try {
+                    const image = this.docker.getImage(imageName);
+                    await image.remove({ force: true });
+                } catch (e) {
+                    // Image may already be removed or in use by another process
+                }
             }
         }
     }

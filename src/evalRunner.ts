@@ -232,6 +232,26 @@ export class EvalRunner {
                 n_commands: commandCount,
                 session_log: sessionLog
             };
+        } catch (err: any) {
+            const duration_ms = Date.now() - startTime;
+            const errorMsg = err?.message || String(err);
+            console.log(`✗ FAILED: ${errorMsg} (${(duration_ms / 1000).toFixed(1)}s)`);
+
+            sessionLog.push({
+                type: 'reward',
+                timestamp: this.timestamp(),
+                value: 0,
+                output: errorMsg
+            });
+
+            return {
+                trial_id: index + 1,
+                reward: 0,
+                grader_results: [],
+                duration_ms,
+                n_commands: commandCount,
+                session_log: sessionLog
+            };
         } finally {
             await this.provider.cleanup(workspace);
         }
