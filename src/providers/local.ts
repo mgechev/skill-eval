@@ -9,12 +9,19 @@ export class LocalProvider implements EnvironmentProvider {
         await fs.ensureDir(tempDir);
         await fs.copy(taskPath, tempDir);
 
-        const skillsDir = path.join(tempDir, '.agents', 'skills');
-        await fs.ensureDir(skillsDir);
+        // Inject skills into agent discovery paths
+        // Gemini: .agents/skills/  |  Claude: .claude/skills/
+        const discoveryDirs = [
+            path.join(tempDir, '.agents', 'skills'),
+            path.join(tempDir, '.claude', 'skills'),
+        ];
 
-        for (const spath of skillsPaths) {
-            const skillName = path.basename(spath);
-            await fs.copy(spath, path.join(skillsDir, skillName));
+        for (const skillsDir of discoveryDirs) {
+            await fs.ensureDir(skillsDir);
+            for (const spath of skillsPaths) {
+                const skillName = path.basename(spath);
+                await fs.copy(spath, path.join(skillsDir, skillName));
+            }
         }
 
         return tempDir;

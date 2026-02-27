@@ -9,7 +9,7 @@ export class GeminiAgent extends BaseAgent {
         console.log('GeminiAgent: Initiating Gemini CLI...');
 
         const escaped = instruction.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/`/g, '\\`').replace(/\$/g, '\\$');
-        const command = `gemini -y "${escaped}"`;
+        const command = `gemini -y --sandbox=none -p "${escaped}"`;
         const result = await runCommand(command);
 
         if (result.exitCode !== 0) {

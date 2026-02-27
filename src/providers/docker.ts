@@ -44,21 +44,25 @@ export class DockerProvider implements EnvironmentProvider {
 
         await container.start();
 
-        // Inject skills via tar archive
+        // Inject skills into agent discovery paths
         if (skillsPaths.length > 0) {
-            const skillsDir = '/workspace/.agents/skills';
-            const mkdirExec = await container.exec({ Cmd: ['mkdir', '-p', skillsDir], AttachStdout: true, AttachStderr: true });
-            const mkdirStream = await mkdirExec.start({});
-            await new Promise<void>((resolve) => {
-                mkdirStream.on('end', resolve);
-                mkdirStream.on('error', resolve);
-                mkdirStream.resume(); // Ensure the stream is consumed
-            });
+            // Gemini: .agents/skills/  |  Claude: .claude/skills/
+            const discoveryDirs = ['/workspace/.agents/skills', '/workspace/.claude/skills'];
 
-            for (const skillPath of skillsPaths) {
-                const skillName = path.basename(skillPath);
-                const archive = await this.createTarFromDir(skillPath, skillName);
-                await container.putArchive(archive, { path: skillsDir });
+            for (const dir of discoveryDirs) {
+                const mkdirExec = await container.exec({ Cmd: ['mkdir', '-p', dir], AttachStdout: true, AttachStderr: true });
+                const mkdirStream = await mkdirExec.start({});
+                await new Promise<void>((resolve) => {
+                    mkdirStream.on('end', resolve);
+                    mkdirStream.on('error', resolve);
+                    mkdirStream.resume();
+                });
+
+                for (const skillPath of skillsPaths) {
+                    const skillName = path.basename(skillPath);
+                    const archive = await this.createTarFromDir(skillPath, skillName);
+                    await container.putArchive(archive, { path: dir });
+                }
             }
         }
 
@@ -114,7 +118,11 @@ export class DockerProvider implements EnvironmentProvider {
         const stream = await exec.start({ Tty: true });
         const output = await new Promise<string>((resolve, reject) => {
             let data = '';
-            stream.on('data', (chunk: Buffer) => data += chunk.toString());
+            stream.on('data', (chunk: Buffer) => {
+                const text = chunk.toString();
+                data += text;
+                process.stdout.write(text); // Stream output in real-time
+            });
             stream.on('end', () => resolve(data));
             stream.on('error', (err: Error) => reject(err));
         });
