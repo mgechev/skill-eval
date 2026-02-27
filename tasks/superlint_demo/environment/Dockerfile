@@ -2,7 +2,7 @@ FROM node:20-slim
 
 WORKDIR /workspace
 
-# Install gemini-cli for agent execution
+# Install gemini CLI for agent execution
 RUN npm install -g @google/gemini-cli
 
 # Copy and install mock superlint tool

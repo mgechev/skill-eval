@@ -117,12 +117,18 @@ Skills are **auto-discovered** at runtime — no flags needed. Use `--no-skills`
 # Basic evaluation (Gemini Agent, Docker Provider, 5 trials, skills auto-included)
 pnpm run eval superlint
 
+# Pass API keys as environment variables
+GEMINI_API_KEY=your-key-here pnpm run eval superlint
+ANTHROPIC_API_KEY=your-key-here pnpm run eval superlint --agent=claude
+
 # Custom configuration
 pnpm run eval superlint --agent=claude --provider=local --trials=3
 
 # Exclude skills
 pnpm run eval superlint --no-skills
 ```
+
+The `GEMINI_API_KEY` and `ANTHROPIC_API_KEY` environment variables are automatically forwarded into the agent's execution environment (Docker container or local process).
 
 ### Multi-Trial Logic
 The framework automatically handles trial isolation. Each trial gets a fresh setup and cleanup, ensuring that state does not leak between attempts.
@@ -163,7 +169,7 @@ API keys and other secrets are injected as environment variables and **automatic
 - [x] **Phase 2: Multi-Trial Runs** - Support for calculating Pass Rate and Trial isolation.
 - [x] **Phase 3: Result Logging** - Persistence of structured evaluation reports with session logs.
 - [x] **Phase 4: Agent Integration** - Support for commercial agent CLI harnesses:
-    - [x] Robust wrappers for `claude` and `gemini-cli`.
+    - [x] Robust wrappers for `claude` and `gemini`.
     - [x] Secure environment injection for API keys (Redacted logs).
 - [x] **Phase 5: Analytics** - Tools for calculating Normalized Gain and comparative metrics.
 - [x] **Phase 6: Ergonomics** - Co-located skills, auto-discovery, timeout enforcement, resource limits.

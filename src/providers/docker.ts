@@ -129,16 +129,35 @@ export class DockerProvider implements EnvironmentProvider {
     }
 
     async cleanup(containerId: string): Promise<void> {
-        try {
-            const container = this.docker.getContainer(containerId);
-            const info = await container.inspect();
-            await container.stop();
-            await container.remove();
+        const container = this.docker.getContainer(containerId);
+        let imageId: string | undefined;
 
-            const image = this.docker.getImage(info.Image);
-            await image.remove();
+        try {
+            const info = await container.inspect();
+            imageId = info.Image;
         } catch (e) {
-            console.warn(`Failed to cleanup container ${containerId}: ${e}`);
+            console.warn(`Failed to inspect container ${containerId}: ${e}`);
+        }
+
+        try {
+            await container.stop();
+        } catch (e) {
+            // Container may already be stopped
+        }
+
+        try {
+            await container.remove({ force: true });
+        } catch (e) {
+            console.warn(`Failed to remove container ${containerId}: ${e}`);
+        }
+
+        if (imageId) {
+            try {
+                const image = this.docker.getImage(imageId);
+                await image.remove({ force: true });
+            } catch (e) {
+                console.warn(`Failed to remove image ${imageId}: ${e}`);
+            }
         }
     }
 }
