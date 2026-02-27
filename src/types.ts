@@ -82,7 +82,14 @@ export abstract class BaseAgent {
 }
 
 export interface EnvironmentProvider {
+    /** One-time setup: build image, inject skills. Returns a reusable handle (e.g., image name). */
+    prepare?(taskPath: string, skillsPaths: string[], taskConfig: TaskConfig, env?: Record<string, string>): Promise<string>;
+    /** Per-trial setup: create isolated workspace from prepared handle. */
     setup(taskPath: string, skillsPaths: string[], taskConfig: TaskConfig, env?: Record<string, string>): Promise<string>;
+    /** Per-trial cleanup: remove workspace. */
     cleanup(workspacePath: string): Promise<void>;
+    /** One-time teardown: remove shared resources (e.g., Docker image). */
+    teardown?(): Promise<void>;
     runCommand(workspacePath: string, command: string, env?: Record<string, string>): Promise<CommandResult>;
+    diagnose?(workspacePath: string): Promise<string>;
 }

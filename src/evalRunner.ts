@@ -90,15 +90,27 @@ export class EvalRunner {
         const taskName = path.basename(taskPath);
         console.log(`Starting eval for task: ${taskName} (${numTrials} trials${parallel > 1 ? `, ${parallel} parallel` : ''})`);
 
+        // One-time image build (if provider supports it)
+        if (this.provider.prepare) {
+            await this.provider.prepare(taskPath, skillsPaths, taskConfig, env);
+        }
+
         let trials: TrialResult[];
 
-        if (parallel > 1 && numTrials > 1) {
-            trials = await this.runTrialsParallel(agent, taskPath, taskConfig, skillsPaths, numTrials, parallel, env);
-        } else {
-            trials = [];
-            for (let i = 0; i < numTrials; i++) {
-                const result = await this.runSingleTrial(agent, taskPath, taskConfig, skillsPaths, i, numTrials, env);
-                trials.push(result);
+        try {
+            if (parallel > 1 && numTrials > 1) {
+                trials = await this.runTrialsParallel(agent, taskPath, taskConfig, skillsPaths, numTrials, parallel, env);
+            } else {
+                trials = [];
+                for (let i = 0; i < numTrials; i++) {
+                    const result = await this.runSingleTrial(agent, taskPath, taskConfig, skillsPaths, i, numTrials, env);
+                    trials.push(result);
+                }
+            }
+        } finally {
+            // One-time image cleanup
+            if (this.provider.teardown) {
+                await this.provider.teardown();
             }
         }
 
@@ -251,11 +263,22 @@ export class EvalRunner {
             const errorMsg = err?.message || String(err);
             console.log(`✗ FAILED: ${errorMsg} (${(duration_ms / 1000).toFixed(1)}s)`);
 
+            // Capture diagnostics before cleanup (only useful for Docker)
+            let diagnostics = '';
+            if (this.provider.diagnose) {
+                try {
+                    diagnostics = await this.provider.diagnose(workspace);
+                    console.log(diagnostics);
+                } catch (e) {
+                    diagnostics = `(diagnostics failed: ${e})`;
+                }
+            }
+
             sessionLog.push({
                 type: 'reward',
                 timestamp: this.timestamp(),
                 value: 0,
-                output: errorMsg
+                output: diagnostics ? `${errorMsg}\n\n${diagnostics}` : errorMsg
             });
 
             return {
