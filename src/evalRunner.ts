@@ -149,13 +149,12 @@ export class EvalRunner {
         total: number,
         env?: Record<string, string>
     ): Promise<TrialResult> {
-        console.log(`\n--- Trial ${index + 1} / ${total} ---`);
         const sessionLog: LogEntry[] = [];
         let commandCount = 0;
         const startTime = Date.now();
 
+        process.stdout.write(`  Trial ${index + 1}/${total} `);
         const workspace = await this.provider.setup(taskPath, skillsPaths, taskConfig, env);
-        console.log(`Workspace set up at identifier: ${workspace}`);
 
         try {
             const instruction = await fs.readFile(path.join(taskPath, 'instruction.md'), 'utf-8');
@@ -166,7 +165,7 @@ export class EvalRunner {
                 instruction
             });
 
-            console.log('Executing agent...');
+            process.stdout.write('▸ ');
             const loggedRunCommand = async (cmd: string) => {
                 const result = await this.provider.runCommand(workspace, cmd, env);
                 commandCount++;
@@ -195,7 +194,6 @@ export class EvalRunner {
             });
 
             // Run all graders
-            console.log('Running graders...');
             const graderResults: GraderResult[] = [];
 
             for (const graderConfig of taskConfig.graders) {
@@ -223,6 +221,8 @@ export class EvalRunner {
             });
 
             const duration_ms = Date.now() - startTime;
+            const status = reward >= 0.5 ? '✓' : '✗';
+            console.log(`${status} reward=${reward.toFixed(2)} (${(duration_ms / 1000).toFixed(1)}s, ${commandCount} cmds)`);
 
             return {
                 trial_id: index + 1,
@@ -233,7 +233,6 @@ export class EvalRunner {
                 session_log: sessionLog
             };
         } finally {
-            console.log('Cleaning up environment...');
             await this.provider.cleanup(workspace);
         }
     }

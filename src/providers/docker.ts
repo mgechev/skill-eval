@@ -119,9 +119,7 @@ export class DockerProvider implements EnvironmentProvider {
         const output = await new Promise<string>((resolve, reject) => {
             let data = '';
             stream.on('data', (chunk: Buffer) => {
-                const text = chunk.toString();
-                data += text;
-                process.stdout.write(text); // Stream output in real-time
+                data += chunk.toString();
             });
             stream.on('end', () => resolve(data));
             stream.on('error', (err: Error) => reject(err));

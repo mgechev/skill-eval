@@ -104,8 +104,8 @@ async function main() {
         }
 
         if (validate) {
-            // Validation mode: run reference solution
-            console.log(`🔍 Validating "${taskName}" with reference solution...`);
+            // Validation mode
+            console.log(`\n🔍 Validating "${taskName}" with reference solution...\n`);
             const solvePath = path.join(taskPath, 'solution', 'solve.sh');
             if (!await fs.pathExists(solvePath)) {
                 console.error(`No reference solution found at ${solvePath}`);
@@ -113,7 +113,7 @@ async function main() {
             }
 
             const solveAgent = {
-                async run(_instruction: string, workspace: string, runCommand: any) {
+                async run(_instruction: string, _workspace: string, runCommand: any) {
                     const result = await runCommand(`bash solution/solve.sh`);
                     return result.stdout;
                 }
@@ -121,36 +121,46 @@ async function main() {
 
             const report = await runner.runEval(solveAgent, taskPath, skillsPaths, 1, env);
             const allPassed = report.trials[0].reward >= 0.5;
-            console.log(`\n${allPassed ? '✅' : '❌'} Validation ${allPassed ? 'PASSED' : 'FAILED'}`);
-            console.log(`Reward: ${report.trials[0].reward.toFixed(2)}`);
-            for (const gr of report.trials[0].grader_results) {
-                console.log(`  ${gr.grader_type}: ${gr.score.toFixed(2)} (weight: ${gr.weight}) — ${gr.details}`);
-            }
+
+            console.log('');
+            console.table(report.trials[0].grader_results.map(gr => ({
+                Grader: gr.grader_type,
+                Score: gr.score.toFixed(2),
+                Weight: gr.weight,
+                Details: gr.details.substring(0, 60)
+            })));
+            console.log(`\n${allPassed ? '✅ Validation PASSED' : '❌ Validation FAILED'} — reward: ${report.trials[0].reward.toFixed(2)}`);
             if (!allPassed) process.exit(1);
         } else {
             // Normal eval mode
-            let agent;
-            if (agentType === 'claude') {
-                agent = new ClaudeAgent();
-            } else {
-                agent = new GeminiAgent();
-            }
+            const agent = agentType === 'claude' ? new ClaudeAgent() : new GeminiAgent();
 
-            console.log(`🚀 Running Evaluation for "${taskName}"...`);
-            console.log(`Agent: ${agentType} | Provider: ${providerType} | Trials: ${trials}${parallel > 1 ? ` | Parallel: ${parallel}` : ''}`);
+            console.log(`\n🚀 ${taskName} | agent=${agentType} provider=${providerType} trials=${trials}${parallel > 1 ? ` parallel=${parallel}` : ''}\n`);
 
             try {
                 const report = await runner.runEval(agent, taskPath, skillsPaths, trials, env, parallel);
-                console.log('\n-------------------------------------------');
-                console.log(`✅ Evaluation Complete for "${taskName}"`);
-                console.log(`Pass Rate:  ${(report.pass_rate * 100).toFixed(1)}%`);
-                console.log(`pass@${trials}:   ${(report.pass_at_k * 100).toFixed(1)}%`);
-                console.log(`pass^${trials}:   ${(report.pass_pow_k * 100).toFixed(1)}%`);
-                console.log(`Avg Duration: ${(report.trials.reduce((s, t) => s + t.duration_ms, 0) / report.trials.length / 1000).toFixed(1)}s`);
-                console.log(`Avg Commands: ${(report.trials.reduce((s, t) => s + t.n_commands, 0) / report.trials.length).toFixed(1)}`);
-                console.log(`Results saved to: ${resultsDir}`);
+
+                // Per-trial table
+                console.log('');
+                console.table(report.trials.map(t => ({
+                    Trial: t.trial_id,
+                    Reward: t.reward.toFixed(2),
+                    Duration: (t.duration_ms / 1000).toFixed(1) + 's',
+                    Commands: t.n_commands,
+                    Graders: t.grader_results.map(g => `${g.grader_type}:${g.score.toFixed(1)}`).join(' ')
+                })));
+
+                // Summary
+                const avgDur = report.trials.reduce((s, t) => s + t.duration_ms, 0) / report.trials.length;
+                const avgCmds = report.trials.reduce((s, t) => s + t.n_commands, 0) / report.trials.length;
+                console.log(`  Pass Rate   ${(report.pass_rate * 100).toFixed(1)}%`);
+                console.log(`  pass@${trials}      ${(report.pass_at_k * 100).toFixed(1)}%`);
+                console.log(`  pass^${trials}      ${(report.pass_pow_k * 100).toFixed(1)}%`);
+                console.log(`  Avg Duration ${(avgDur / 1000).toFixed(1)}s | Avg Commands ${avgCmds.toFixed(1)}`);
+                console.log(`  Skills      ${report.skills_used.length > 0 ? report.skills_used.join(', ') : 'none'}`);
+                console.log(`  Saved to    ${resultsDir}\n`);
             } catch (err) {
-                console.error('Evaluation failed:', err);
+                console.error('\nEvaluation failed:', err);
                 process.exit(1);
             }
         }

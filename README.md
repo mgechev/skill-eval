@@ -111,6 +111,32 @@ weight = 0.3
 | **Normalized Gain** | Relative improvement from skills: `(with - without) / (1 - without)` |
 | **Duration / Commands** | Per-trial timing and command count |
 
+## Best Practices for Running Evals
+
+Based on recommendations from [Demystifying Evals for AI Agents](https://www.anthropic.com/engineering/demystifying-evals-for-ai-agents):
+
+**How many trials?** Agent behavior is non-deterministic. A single run tells you almost nothing.
+
+| Goal | Recommended Trials | Metric to Use |
+|---|---|---|
+| Quick smoke test | 3–5 | pass@k |
+| Reliable pass rate estimate | 10–25 | Pass Rate (mean reward) |
+| High-confidence regression detection | 25–50 | pass^k |
+
+- **pass@k** (≥1 success in k trials) tells you if the agent *can* solve the task. Use this for capability evals and new tasks.
+- **pass^k** (all k trials succeed) tells you if the agent *reliably* solves the task. Use this for regression suites where consistency matters.
+- A task with pass@5 = 100% but pass^5 = 30% indicates the agent *can* do it but is flaky — worth investigating the transcript.
+
+**Grader design:**
+- Grade *outcomes*, not *steps*. Check that the file was fixed, not that the agent ran a specific command.
+- Use deterministic graders for objective criteria and LLM rubrics for qualitative assessment (workflow compliance, efficiency).
+- Always validate graders with `--validate` before running real evals. If the reference solution doesn't pass, your graders are broken.
+
+**Task quality:**
+- Every task should have a reference solution (`solution/solve.sh`) that proves solvability.
+- Test both positive and negative cases — a grader that always returns 1.0 is useless.
+- Start with 3–5 well-designed tasks rather than 50 noisy ones.
+
 ## Security
 
 API keys are injected via environment variables and **automatically redacted** from all persisted logs.
