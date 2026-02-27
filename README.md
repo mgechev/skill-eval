@@ -1,6 +1,6 @@
 # SkillsBench: Node.js Agent Skill Evaluation Framework
 
-A TypeScript-based evaluation infrastructure for benchmarking AI agent efficiency in using modular "Skills." Based on the research paper [SkillsBench: Benchmarking How Well Agent Skills Work Across Diverse Tasks](https://arxiv.org/html/2602.12670v1).
+A TypeScript-based evaluation infrastructure for benchmarking AI agent efficiency in using modular "Skills." Inspired by the research paper [SkillsBench: Benchmarking How Well Agent Skills Work Across Diverse Tasks](https://arxiv.org/html/2602.12670v1) and Anthropic's [Demystifying Evals for AI Agents](https://www.anthropic.com/engineering/demystifying-evals-for-ai-agents).
 
 ## 🚀 Overview
 

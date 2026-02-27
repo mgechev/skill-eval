@@ -7,7 +7,9 @@
     "test:bootstrap": "ts-node tests/bootstrap.test.ts",
     "test:analytics": "ts-node tests/analytics.test.ts",
     "eval": "ts-node src/cli.ts",
-    "analyze": "ts-node src/analytics/analyze.ts"
+    "validate": "ts-node src/cli.ts -- --validate",
+    "analyze": "ts-node src/analytics/analyze.ts",
+    "viewer": "ts-node src/viewer.ts"
   },
   "keywords": [],
   "author": "",

@@ -1,0 +1,6 @@
+# Workflow Compliance Suite
+# Tests tasks that require following specific procedural workflows
+
+name = "workflow"
+description = "Evaluates agent compliance with mandatory workflows and tool usage"
+tasks = ["superlint_demo"]

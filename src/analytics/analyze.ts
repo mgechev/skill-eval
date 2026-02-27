@@ -23,7 +23,9 @@ async function main() {
             Task: s.task,
             'Pass Rate (No Skill)': (s.passRateNoSkill * 100).toFixed(1) + '%',
             'Pass Rate (With Skill)': (s.passRateWithSkill * 100).toFixed(1) + '%',
-            'Normalized Gain': s.normalizedGain.toFixed(2)
+            'Normalized Gain': s.normalizedGain.toFixed(2),
+            'Avg Duration': (s.avgDurationMs / 1000).toFixed(1) + 's',
+            'Avg Commands': s.avgCommands.toFixed(1)
         })));
     } catch (e) {
         console.error('Analysis failed:', e);

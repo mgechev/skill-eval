@@ -7,6 +7,8 @@ export interface AggregateStats {
     passRateNoSkill: number;
     passRateWithSkill: number;
     normalizedGain: number;
+    avgDurationMs: number;
+    avgCommands: number;
 }
 
 /**
@@ -36,7 +38,10 @@ export class AnalyticsEngine {
     }
 
     aggregate(reports: EvalReport[]): AggregateStats[] {
-        const taskGroups: Record<string, { withSkill: number[]; withoutSkill: number[] }> = {};
+        const taskGroups: Record<string, {
+            withSkill: EvalReport[];
+            withoutSkill: EvalReport[];
+        }> = {};
 
         for (const report of reports) {
             if (!taskGroups[report.task]) {
@@ -45,27 +50,39 @@ export class AnalyticsEngine {
 
             const hasSkills = report.skills_used && report.skills_used.length > 0;
             if (hasSkills) {
-                taskGroups[report.task].withSkill.push(report.pass_rate);
+                taskGroups[report.task].withSkill.push(report);
             } else {
-                taskGroups[report.task].withoutSkill.push(report.pass_rate);
+                taskGroups[report.task].withoutSkill.push(report);
             }
         }
 
         const stats: AggregateStats[] = [];
 
         for (const [task, data] of Object.entries(taskGroups)) {
+            const allReports = [...data.withSkill, ...data.withoutSkill];
+
             const avgWith = data.withSkill.length > 0
-                ? data.withSkill.reduce((a, b) => a + b, 0) / data.withSkill.length
+                ? data.withSkill.reduce((a, b) => a + b.pass_rate, 0) / data.withSkill.length
                 : 0;
             const avgWithout = data.withoutSkill.length > 0
-                ? data.withoutSkill.reduce((a, b) => a + b, 0) / data.withoutSkill.length
+                ? data.withoutSkill.reduce((a, b) => a + b.pass_rate, 0) / data.withoutSkill.length
+                : 0;
+
+            const allTrials = allReports.flatMap(r => r.trials);
+            const avgDurationMs = allTrials.length > 0
+                ? allTrials.reduce((s, t) => s + (t.duration_ms || 0), 0) / allTrials.length
+                : 0;
+            const avgCommands = allTrials.length > 0
+                ? allTrials.reduce((s, t) => s + (t.n_commands || 0), 0) / allTrials.length
                 : 0;
 
             stats.push({
                 task,
                 passRateWithSkill: avgWith,
                 passRateNoSkill: avgWithout,
-                normalizedGain: calculateNormalizedGain(avgWith, avgWithout)
+                normalizedGain: calculateNormalizedGain(avgWith, avgWithout),
+                avgDurationMs,
+                avgCommands
             });
         }
 

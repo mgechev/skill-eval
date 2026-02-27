@@ -2,15 +2,26 @@ import * as fs from 'fs-extra';
 import * as path from 'path';
 import * as toml from 'toml';
 import {
-    BaseAgent, EnvironmentProvider, TaskConfig,
-    LogEntry, TrialResult, EvalReport
+    BaseAgent, EnvironmentProvider, TaskConfig, GraderConfig,
+    LogEntry, TrialResult, EvalReport, GraderResult
 } from './types';
-import { LocalProvider } from './providers/local';
+import { getGrader } from './graders';
 
 export async function loadTaskConfig(taskPath: string): Promise<TaskConfig> {
     const configPath = path.join(taskPath, 'task.toml');
     const content = await fs.readFile(configPath, 'utf-8');
-    return toml.parse(content);
+    const raw = toml.parse(content);
+
+    // Normalize: support both old [verifier] format and new [[graders]] format
+    if (!raw.graders && raw.verifier) {
+        raw.graders = [{
+            type: 'deterministic',
+            command: 'bash tests/test.sh',
+            weight: 1.0
+        }];
+    }
+
+    return raw;
 }
 
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string): Promise<T> {
@@ -26,6 +37,29 @@ function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string): 
     });
 }
 
+/**
+ * Calculate pass@k: probability of at least 1 success in k trials
+ * Using unbiased estimator: 1 - C(n-c, k) / C(n, k)
+ * where n = total trials, c = successes, k = attempts
+ */
+function calculatePassAtK(n: number, c: number, k: number): number {
+    if (n - c < k) return 1.0;
+    let result = 1.0;
+    for (let i = 0; i < k; i++) {
+        result *= (n - c - i) / (n - i);
+    }
+    return 1.0 - result;
+}
+
+/**
+ * Calculate pass^k: probability that all k trials succeed
+ * Estimated as (c/n)^k
+ */
+function calculatePassPowK(n: number, c: number, k: number): number {
+    const p = c / n;
+    return Math.pow(p, k);
+}
+
 export class EvalRunner {
     private provider: EnvironmentProvider;
     private logDir?: string;
@@ -39,101 +73,38 @@ export class EvalRunner {
         return new Date().toISOString();
     }
 
-    async runEval(agent: BaseAgent, taskPath: string, skillsPaths: string[] = [], numTrials: number = 1, env?: Record<string, string>): Promise<EvalReport> {
+    async runEval(
+        agent: BaseAgent,
+        taskPath: string,
+        skillsPaths: string[] = [],
+        numTrials: number = 1,
+        env?: Record<string, string>,
+        parallel: number = 1
+    ): Promise<EvalReport> {
         const taskConfig = await loadTaskConfig(taskPath);
         const taskName = path.basename(taskPath);
-        console.log(`Starting eval for task: ${taskName} (${numTrials} trials)`);
+        console.log(`Starting eval for task: ${taskName} (${numTrials} trials${parallel > 1 ? `, ${parallel} parallel` : ''})`);
 
-        const trials: TrialResult[] = [];
-        let totalReward = 0;
+        let trials: TrialResult[];
 
-        for (let i = 0; i < numTrials; i++) {
-            console.log(`\n--- Trial ${i + 1} / ${numTrials} ---`);
-            const sessionLog: LogEntry[] = [];
-            const workspace = await this.provider.setup(taskPath, skillsPaths, taskConfig, env);
-            console.log(`Workspace set up at identifier: ${workspace}`);
-
-            try {
-                const instruction = await fs.readFile(path.join(taskPath, 'instruction.md'), 'utf-8');
-
-                sessionLog.push({
-                    type: 'agent_start',
-                    timestamp: this.timestamp(),
-                    instruction
-                });
-
-                console.log('Executing agent...');
-                const loggedRunCommand = async (cmd: string) => {
-                    const result = await this.provider.runCommand(workspace, cmd, env);
-                    sessionLog.push({
-                        type: 'command',
-                        timestamp: this.timestamp(),
-                        command: cmd,
-                        stdout: result.stdout,
-                        stderr: result.stderr,
-                        exitCode: result.exitCode
-                    });
-                    return result;
-                };
-
-                const agentTimeoutMs = taskConfig.agent.timeout_sec * 1000;
-                const agentLogs = await withTimeout(
-                    agent.run(instruction, workspace, loggedRunCommand),
-                    agentTimeoutMs,
-                    `Agent (limit: ${taskConfig.agent.timeout_sec}s)`
-                );
-
-                sessionLog.push({
-                    type: 'agent_result',
-                    timestamp: this.timestamp(),
-                    output: agentLogs
-                });
-
-                console.log('Running verifier...');
-                const verifierTimeoutMs = taskConfig.verifier.timeout_sec * 1000;
-                const verifierResult = await withTimeout(
-                    this.provider.runCommand(workspace, 'bash tests/test.sh', env),
-                    verifierTimeoutMs,
-                    `Verifier (limit: ${taskConfig.verifier.timeout_sec}s)`
-                );
-
-                sessionLog.push({
-                    type: 'verifier',
-                    timestamp: this.timestamp(),
-                    command: 'bash tests/test.sh',
-                    stdout: verifierResult.stdout,
-                    stderr: verifierResult.stderr,
-                    exitCode: verifierResult.exitCode
-                });
-
-                let reward = 0;
-                const rewardCheck = await this.provider.runCommand(workspace, 'cat logs/verifier/reward.txt', env);
-                if (rewardCheck.exitCode === 0) {
-                    const parsed = parseInt(rewardCheck.stdout.trim());
-                    reward = isNaN(parsed) ? 0 : parsed;
-                }
-
-                sessionLog.push({
-                    type: 'reward',
-                    timestamp: this.timestamp(),
-                    value: reward
-                });
-
-                totalReward += reward;
-                trials.push({
-                    trial_id: i + 1,
-                    reward,
-                    session_log: sessionLog
-                });
-            } finally {
-                console.log('Cleaning up environment...');
-                await this.provider.cleanup(workspace);
+        if (parallel > 1 && numTrials > 1) {
+            trials = await this.runTrialsParallel(agent, taskPath, taskConfig, skillsPaths, numTrials, parallel, env);
+        } else {
+            trials = [];
+            for (let i = 0; i < numTrials; i++) {
+                const result = await this.runSingleTrial(agent, taskPath, taskConfig, skillsPaths, i, numTrials, env);
+                trials.push(result);
             }
         }
+
+        const totalReward = trials.reduce((sum, t) => sum + t.reward, 0);
+        const successes = trials.filter(t => t.reward >= 0.5).length; // threshold for "pass"
 
         const report: EvalReport = {
             task: taskName,
             pass_rate: totalReward / numTrials,
+            pass_at_k: calculatePassAtK(numTrials, successes, numTrials),
+            pass_pow_k: calculatePassPowK(numTrials, successes, numTrials),
             trials,
             skills_used: skillsPaths.map(p => path.basename(p))
         };
@@ -144,6 +115,127 @@ export class EvalRunner {
         }
 
         return report;
+    }
+
+    private async runTrialsParallel(
+        agent: BaseAgent,
+        taskPath: string,
+        taskConfig: TaskConfig,
+        skillsPaths: string[],
+        numTrials: number,
+        parallel: number,
+        env?: Record<string, string>
+    ): Promise<TrialResult[]> {
+        const results: TrialResult[] = new Array(numTrials);
+        const queue = Array.from({ length: numTrials }, (_, i) => i);
+
+        const workers = Array.from({ length: Math.min(parallel, numTrials) }, async () => {
+            while (queue.length > 0) {
+                const i = queue.shift()!;
+                results[i] = await this.runSingleTrial(agent, taskPath, taskConfig, skillsPaths, i, numTrials, env);
+            }
+        });
+
+        await Promise.all(workers);
+        return results;
+    }
+
+    private async runSingleTrial(
+        agent: BaseAgent,
+        taskPath: string,
+        taskConfig: TaskConfig,
+        skillsPaths: string[],
+        index: number,
+        total: number,
+        env?: Record<string, string>
+    ): Promise<TrialResult> {
+        console.log(`\n--- Trial ${index + 1} / ${total} ---`);
+        const sessionLog: LogEntry[] = [];
+        let commandCount = 0;
+        const startTime = Date.now();
+
+        const workspace = await this.provider.setup(taskPath, skillsPaths, taskConfig, env);
+        console.log(`Workspace set up at identifier: ${workspace}`);
+
+        try {
+            const instruction = await fs.readFile(path.join(taskPath, 'instruction.md'), 'utf-8');
+
+            sessionLog.push({
+                type: 'agent_start',
+                timestamp: this.timestamp(),
+                instruction
+            });
+
+            console.log('Executing agent...');
+            const loggedRunCommand = async (cmd: string) => {
+                const result = await this.provider.runCommand(workspace, cmd, env);
+                commandCount++;
+                sessionLog.push({
+                    type: 'command',
+                    timestamp: this.timestamp(),
+                    command: cmd,
+                    stdout: result.stdout,
+                    stderr: result.stderr,
+                    exitCode: result.exitCode
+                });
+                return result;
+            };
+
+            const agentTimeoutMs = taskConfig.agent.timeout_sec * 1000;
+            const agentLogs = await withTimeout(
+                agent.run(instruction, workspace, loggedRunCommand),
+                agentTimeoutMs,
+                `Agent (limit: ${taskConfig.agent.timeout_sec}s)`
+            );
+
+            sessionLog.push({
+                type: 'agent_result',
+                timestamp: this.timestamp(),
+                output: agentLogs
+            });
+
+            // Run all graders
+            console.log('Running graders...');
+            const graderResults: GraderResult[] = [];
+
+            for (const graderConfig of taskConfig.graders) {
+                const grader = getGrader(graderConfig.type);
+                const result = await grader.grade(workspace, this.provider, graderConfig, taskPath, sessionLog, env);
+                graderResults.push(result);
+
+                sessionLog.push({
+                    type: 'grader',
+                    timestamp: this.timestamp(),
+                    grader_result: result
+                });
+            }
+
+            // Calculate weighted reward
+            const totalWeight = graderResults.reduce((sum, r) => sum + r.weight, 0);
+            const reward = totalWeight > 0
+                ? graderResults.reduce((sum, r) => sum + r.score * r.weight, 0) / totalWeight
+                : 0;
+
+            sessionLog.push({
+                type: 'reward',
+                timestamp: this.timestamp(),
+                value: reward
+            });
+
+            const duration_ms = Date.now() - startTime;
+
+            return {
+                trial_id: index + 1,
+                reward,
+                grader_results: graderResults,
+                duration_ms,
+                n_commands: commandCount,
+                session_log: sessionLog
+            };
+        } finally {
+            console.log('Cleaning up environment...');
+            await this.provider.cleanup(workspace);
+        }
     }
 
     private sanitize(report: EvalReport, env?: Record<string, string>): EvalReport {
@@ -169,6 +261,10 @@ export class EvalRunner {
                 if (entry.stdout) entry.stdout = redact(entry.stdout);
                 if (entry.stderr) entry.stderr = redact(entry.stderr);
                 if (entry.output) entry.output = redact(entry.output);
+                if (entry.grader_result?.details) entry.grader_result.details = redact(entry.grader_result.details);
+            }
+            for (const gr of trial.grader_results) {
+                if (gr.details) gr.details = redact(gr.details);
             }
         }
 

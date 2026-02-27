@@ -24,10 +24,10 @@ async function testAnalytics() {
 
     // 2. Test Aggregation
     const mockReports: EvalReport[] = [
-        { task: 'task1', pass_rate: 0.5, trials: [], skills_used: [] },
-        { task: 'task1', pass_rate: 1.0, trials: [], skills_used: ['skill1'] },
-        { task: 'task2', pass_rate: 0.0, trials: [], skills_used: [] },
-        { task: 'task2', pass_rate: 0.5, trials: [], skills_used: ['skill1'] },
+        { task: 'task1', pass_rate: 0.5, pass_at_k: 0.5, pass_pow_k: 0.5, trials: [], skills_used: [] },
+        { task: 'task1', pass_rate: 1.0, pass_at_k: 1.0, pass_pow_k: 1.0, trials: [], skills_used: ['skill1'] },
+        { task: 'task2', pass_rate: 0.0, pass_at_k: 0.0, pass_pow_k: 0.0, trials: [], skills_used: [] },
+        { task: 'task2', pass_rate: 0.5, pass_at_k: 0.5, pass_pow_k: 0.5, trials: [], skills_used: ['skill1'] },
     ];
 
     const engine = new AnalyticsEngine();

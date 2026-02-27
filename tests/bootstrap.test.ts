@@ -29,7 +29,9 @@ async function runTest(useDocker: boolean, numTrials: number = 1, logDir?: strin
 
     console.log('Eval Report Summary:');
     console.log(`Task: ${report.task}`);
-    console.log(`Pass Rate: ${report.pass_rate}`);
+    console.log(`Pass Rate: ${report.pass_rate.toFixed(2)}`);
+    console.log(`pass@k: ${report.pass_at_k.toFixed(2)}`);
+    console.log(`pass^k: ${report.pass_pow_k.toFixed(2)}`);
     console.log(`Trials Count: ${report.trials.length}`);
 
     // Verify session_log is populated
@@ -40,23 +42,45 @@ async function runTest(useDocker: boolean, numTrials: number = 1, logDir?: strin
     }
     console.log(`Session log entries: ${firstLog.length}`);
 
-    if (report.pass_rate === 1.0 && report.trials.length === numTrials) {
-        console.log(`\nSUCCESS: ${useDocker ? 'Docker' : 'Local'} multi-trial implementation verified!`);
+    // Verify grader_results
+    if (!report.trials[0].grader_results || report.trials[0].grader_results.length === 0) {
+        console.log('FAILURE: grader_results is empty!');
+        process.exit(1);
+    }
+    console.log(`Grader results: ${report.trials[0].grader_results.length}`);
+    for (const gr of report.trials[0].grader_results) {
+        console.log(`  ${gr.grader_type}: ${gr.score.toFixed(2)} (weight: ${gr.weight})`);
+    }
 
-        if (logDir) {
-            const files = await fs.readdir(logDir);
-            const reportFile = files.find(f => f.startsWith(report.task) && f.endsWith('.json'));
-            if (reportFile) {
-                console.log(`SUCCESS: Persistence verified! Found report: ${reportFile}`);
-            } else {
-                console.log(`FAILURE: Persistence failed! No report found in ${logDir}`);
-                process.exit(1);
-            }
-        }
-    } else {
+    // Verify metrics
+    if (report.trials[0].duration_ms <= 0) {
+        console.log('FAILURE: duration_ms not tracked!');
+        process.exit(1);
+    }
+    if (report.trials[0].n_commands <= 0) {
+        console.log('FAILURE: n_commands not tracked!');
+        process.exit(1);
+    }
+    console.log(`Duration: ${report.trials[0].duration_ms}ms | Commands: ${report.trials[0].n_commands}`);
+
+    // Check pass rate (deterministic grader should pass at minimum)
+    if (report.pass_rate < 0.5 || report.trials.length !== numTrials) {
         console.log(`\nFAILURE: Report did not meet expectations`);
         console.log(JSON.stringify(report, null, 2));
         process.exit(1);
+    }
+
+    console.log(`\nSUCCESS: ${useDocker ? 'Docker' : 'Local'} multi-trial implementation verified!`);
+
+    if (logDir) {
+        const files = await fs.readdir(logDir);
+        const reportFile = files.find(f => f.startsWith(report.task) && f.endsWith('.json'));
+        if (reportFile) {
+            console.log(`SUCCESS: Persistence verified! Found report: ${reportFile}`);
+        } else {
+            console.log(`FAILURE: Persistence failed! No report found in ${logDir}`);
+            process.exit(1);
+        }
     }
 }
 
@@ -99,7 +123,7 @@ async function main() {
         } as BaseAgent;
 
         const runner = new EvalRunner(new LocalProvider(), secretLogDir);
-        const secretReport = await runner.runEval(
+        await runner.runEval(
             secretAgent,
             path.join(__dirname, '..', 'tasks', 'superlint_demo'),
             [],

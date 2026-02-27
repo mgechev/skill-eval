@@ -1,8 +1,9 @@
 import { DockerProvider } from './providers/docker';
 import { LocalProvider } from './providers/local';
-import { EvalRunner } from './evalRunner';
+import { EvalRunner, loadTaskConfig } from './evalRunner';
 import { GeminiAgent } from './agents/gemini';
 import { ClaudeAgent } from './agents/claude';
+import { BaseAgent } from './types';
 import * as path from 'path';
 import * as fs from 'fs-extra';
 
@@ -16,7 +17,10 @@ async function main() {
         console.log('  --agent=gemini|claude    Default: gemini');
         console.log('  --provider=docker|local  Default: docker');
         console.log('  --trials=N               Default: 5');
+        console.log('  --parallel=N             Run trials concurrently (default: 1)');
         console.log('  --no-skills              Exclude co-located skills');
+        console.log('  --validate               Run reference solution to verify graders');
+        console.log('  --suite=<name>           Run all tasks in a suite');
         process.exit(0);
     }
 
@@ -24,79 +28,132 @@ async function main() {
     const agentType = args.find(a => a.startsWith('--agent='))?.split('=')[1] || 'gemini';
     const providerType = args.find(a => a.startsWith('--provider='))?.split('=')[1] || 'docker';
     const trials = parseInt(args.find(a => a.startsWith('--trials='))?.split('=')[1] || '5');
+    const parallel = parseInt(args.find(a => a.startsWith('--parallel='))?.split('=')[1] || '1');
     const noSkills = args.includes('--no-skills');
+    const validate = args.includes('--validate');
+    const suiteArg = args.find(a => a.startsWith('--suite='))?.split('=')[1];
 
-    // Resolve task path
-    const tasksDir = path.join(__dirname, '..', 'tasks');
-    const availableTasks = await fs.readdir(tasksDir);
-
-    // Strict matching: exact match first, then unique prefix match
-    let taskName: string | undefined;
-    const exactMatch = availableTasks.find(t => t === taskArg);
-    if (exactMatch) {
-        taskName = exactMatch;
-    } else {
-        const prefixMatches = availableTasks.filter(t => t.startsWith(taskArg));
-        if (prefixMatches.length === 1) {
-            taskName = prefixMatches[0];
-        } else if (prefixMatches.length > 1) {
-            console.error(`Error: Ambiguous task "${taskArg}" matches: ${prefixMatches.join(', ')}`);
-            process.exit(1);
-        }
-    }
-
-    if (!taskName) {
-        console.error(`Error: Task "${taskArg}" not found in ${tasksDir}`);
-        console.log(`Available tasks: ${availableTasks.join(', ')}`);
-        process.exit(1);
-    }
-
-    const taskPath = path.join(tasksDir, taskName);
-    const resultsDir = path.join(__dirname, '..', 'results');
-
-    // Setup components
+    // Setup provider
     const provider = providerType === 'docker' ? new DockerProvider() : new LocalProvider();
-    const runner = new EvalRunner(provider, resultsDir);
-
-    let agent;
-    if (agentType === 'claude') {
-        agent = new ClaudeAgent();
-    } else {
-        agent = new GeminiAgent();
-    }
-
-    // Auto-discover skills from task directory
-    const skillsPaths: string[] = [];
-    if (!noSkills) {
-        const skillsDir = path.join(taskPath, 'skills');
-        if (await fs.pathExists(skillsDir)) {
-            const skillDirs = (await fs.readdir(skillsDir, { withFileTypes: true }))
-                .filter(d => d.isDirectory())
-                .map(d => path.join(skillsDir, d.name));
-            skillsPaths.push(...skillDirs);
-            if (skillDirs.length > 0) {
-                console.log(`Auto-discovered skills: ${skillDirs.map(d => path.basename(d)).join(', ')}`);
-            }
-        }
-    }
+    const resultsDir = path.join(__dirname, '..', 'results');
 
     // Forward all environment variables
     const env: Record<string, string> = {};
     if (process.env.GEMINI_API_KEY) env.GEMINI_API_KEY = process.env.GEMINI_API_KEY;
     if (process.env.ANTHROPIC_API_KEY) env.ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 
-    console.log(`🚀 Running Evaluation for "${taskName}"...`);
-    console.log(`Agent: ${agentType} | Provider: ${providerType} | Trials: ${trials}`);
+    // Determine tasks to run
+    const tasksDir = path.join(__dirname, '..', 'tasks');
+    let taskNames: string[] = [];
 
-    try {
-        const report = await runner.runEval(agent, taskPath, skillsPaths, trials, env);
-        console.log('\n-------------------------------------------');
-        console.log(`✅ Evaluation Complete!`);
-        console.log(`Pass Rate: ${(report.pass_rate * 100).toFixed(1)}%`);
-        console.log(`Results saved to: ${resultsDir}`);
-    } catch (err) {
-        console.error('Evaluation failed:', err);
-        process.exit(1);
+    if (suiteArg) {
+        // Load suite
+        const suitePath = path.join(__dirname, '..', 'suites', `${suiteArg}.toml`);
+        if (!await fs.pathExists(suitePath)) {
+            console.error(`Error: Suite "${suiteArg}" not found at ${suitePath}`);
+            const suitesDir = path.join(__dirname, '..', 'suites');
+            if (await fs.pathExists(suitesDir)) {
+                const available = (await fs.readdir(suitesDir)).filter(f => f.endsWith('.toml')).map(f => f.replace('.toml', ''));
+                console.log(`Available suites: ${available.join(', ')}`);
+            }
+            process.exit(1);
+        }
+        const toml = require('toml');
+        const suiteConfig = toml.parse(await fs.readFile(suitePath, 'utf-8'));
+        taskNames = suiteConfig.tasks || [];
+        console.log(`📋 Running suite "${suiteArg}" with ${taskNames.length} tasks`);
+    } else {
+        // Single task
+        const availableTasks = await fs.readdir(tasksDir);
+        const exactMatch = availableTasks.find(t => t === taskArg);
+        if (exactMatch) {
+            taskNames = [exactMatch];
+        } else {
+            const prefixMatches = availableTasks.filter(t => t.startsWith(taskArg));
+            if (prefixMatches.length === 1) {
+                taskNames = [prefixMatches[0]];
+            } else if (prefixMatches.length > 1) {
+                console.error(`Error: Ambiguous task "${taskArg}" matches: ${prefixMatches.join(', ')}`);
+                process.exit(1);
+            } else {
+                console.error(`Error: Task "${taskArg}" not found in ${tasksDir}`);
+                console.log(`Available tasks: ${availableTasks.join(', ')}`);
+                process.exit(1);
+            }
+        }
+    }
+
+    // Run each task
+    for (const taskName of taskNames) {
+        const taskPath = path.join(tasksDir, taskName);
+        const runner = new EvalRunner(provider, resultsDir);
+
+        // Auto-discover skills
+        const skillsPaths: string[] = [];
+        if (!noSkills) {
+            const skillsDir = path.join(taskPath, 'skills');
+            if (await fs.pathExists(skillsDir)) {
+                const skillDirs = (await fs.readdir(skillsDir, { withFileTypes: true }))
+                    .filter(d => d.isDirectory())
+                    .map(d => path.join(skillsDir, d.name));
+                skillsPaths.push(...skillDirs);
+                if (skillDirs.length > 0) {
+                    console.log(`Auto-discovered skills: ${skillDirs.map(d => path.basename(d)).join(', ')}`);
+                }
+            }
+        }
+
+        if (validate) {
+            // Validation mode: run reference solution
+            console.log(`🔍 Validating "${taskName}" with reference solution...`);
+            const solvePath = path.join(taskPath, 'solution', 'solve.sh');
+            if (!await fs.pathExists(solvePath)) {
+                console.error(`No reference solution found at ${solvePath}`);
+                process.exit(1);
+            }
+
+            const solveAgent = {
+                async run(_instruction: string, workspace: string, runCommand: any) {
+                    const result = await runCommand(`bash solution/solve.sh`);
+                    return result.stdout;
+                }
+            } as BaseAgent;
+
+            const report = await runner.runEval(solveAgent, taskPath, skillsPaths, 1, env);
+            const allPassed = report.trials[0].reward >= 0.5;
+            console.log(`\n${allPassed ? '✅' : '❌'} Validation ${allPassed ? 'PASSED' : 'FAILED'}`);
+            console.log(`Reward: ${report.trials[0].reward.toFixed(2)}`);
+            for (const gr of report.trials[0].grader_results) {
+                console.log(`  ${gr.grader_type}: ${gr.score.toFixed(2)} (weight: ${gr.weight}) — ${gr.details}`);
+            }
+            if (!allPassed) process.exit(1);
+        } else {
+            // Normal eval mode
+            let agent;
+            if (agentType === 'claude') {
+                agent = new ClaudeAgent();
+            } else {
+                agent = new GeminiAgent();
+            }
+
+            console.log(`🚀 Running Evaluation for "${taskName}"...`);
+            console.log(`Agent: ${agentType} | Provider: ${providerType} | Trials: ${trials}${parallel > 1 ? ` | Parallel: ${parallel}` : ''}`);
+
+            try {
+                const report = await runner.runEval(agent, taskPath, skillsPaths, trials, env, parallel);
+                console.log('\n-------------------------------------------');
+                console.log(`✅ Evaluation Complete for "${taskName}"`);
+                console.log(`Pass Rate:  ${(report.pass_rate * 100).toFixed(1)}%`);
+                console.log(`pass@${trials}:   ${(report.pass_at_k * 100).toFixed(1)}%`);
+                console.log(`pass^${trials}:   ${(report.pass_pow_k * 100).toFixed(1)}%`);
+                console.log(`Avg Duration: ${(report.trials.reduce((s, t) => s + t.duration_ms, 0) / report.trials.length / 1000).toFixed(1)}s`);
+                console.log(`Avg Commands: ${(report.trials.reduce((s, t) => s + t.n_commands, 0) / report.trials.length).toFixed(1)}`);
+                console.log(`Results saved to: ${resultsDir}`);
+            } catch (err) {
+                console.error('Evaluation failed:', err);
+                process.exit(1);
+            }
+        }
     }
 }
 

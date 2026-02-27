@@ -12,10 +12,18 @@ export interface TaskMetadata {
     tags: string[];
 }
 
+export interface GraderConfig {
+    type: 'deterministic' | 'llm_rubric';
+    command?: string;         // for deterministic
+    rubric?: string;          // for llm_rubric — path relative to task dir
+    model?: string;           // for llm_rubric
+    weight: number;
+}
+
 export interface TaskConfig {
     version: string;
     metadata: TaskMetadata;
-    verifier: { timeout_sec: number };
+    graders: GraderConfig[];
     agent: { timeout_sec: number };
     environment: {
         build_timeout_sec: number;
@@ -25,8 +33,15 @@ export interface TaskConfig {
     };
 }
 
+export interface GraderResult {
+    grader_type: string;
+    score: number;      // 0.0 – 1.0
+    weight: number;
+    details: string;
+}
+
 export interface LogEntry {
-    type: 'agent_start' | 'command' | 'agent_result' | 'verifier' | 'reward';
+    type: 'agent_start' | 'command' | 'agent_result' | 'grader' | 'reward';
     timestamp: string;
     instruction?: string;
     command?: string;
@@ -35,17 +50,23 @@ export interface LogEntry {
     exitCode?: number;
     output?: string;
     value?: number;
+    grader_result?: GraderResult;
 }
 
 export interface TrialResult {
     trial_id: number;
-    reward: number;
+    reward: number;           // 0.0 – 1.0 weighted score
+    grader_results: GraderResult[];
+    duration_ms: number;
+    n_commands: number;
     session_log: LogEntry[];
 }
 
 export interface EvalReport {
     task: string;
     pass_rate: number;
+    pass_at_k: number;        // probability of ≥1 success in k trials
+    pass_pow_k: number;       // probability of all k trials succeeding
     trials: TrialResult[];
     skills_used: string[];
 }
