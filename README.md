@@ -2,6 +2,8 @@
 
 Evaluation framework for [Agent Skills](https://agentskills.io/home). Inspired by [SkillsBench](https://arxiv.org/html/2602.12670v1) and [Demystifying Evals for AI Agents](https://www.anthropic.com/engineering/demystifying-evals-for-ai-agents).
 
+![CLI Preview](assets/cli-preview.png)
+
 ## Getting Started
 
 **Prerequisites**: Node.js 20+, pnpm, Docker
