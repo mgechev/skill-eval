@@ -40,7 +40,7 @@ async function loadEnvFile(filePath: string): Promise<Record<string, string>> {
 
 async function main() {
     const args = process.argv.slice(2);
-    const taskArg = args[0];
+    const taskArg = args.find(a => !a.startsWith('--'));
 
     if (!taskArg || taskArg === '--help' || taskArg === '-h') {
         console.log('Usage: npm run eval <task_name> [options]');

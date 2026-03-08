@@ -7,7 +7,7 @@
     "test:bootstrap": "ts-node tests/bootstrap.test.ts",
     "test:analytics": "ts-node tests/analytics.test.ts",
     "eval": "ts-node src/cli.ts",
-    "validate": "ts-node src/cli.ts -- --validate",
+    "validate": "ts-node src/cli.ts --validate",
     "analyze": "ts-node src/analytics/analyze.ts",
     "preview": "ts-node src/preview.ts",
     "viewer": "ts-node src/preview.ts browser"
