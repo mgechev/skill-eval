@@ -1,3 +1,8 @@
+---
+name: superlint
+description: Mandatory 3-step corporate linting workflow using the proprietary SuperLint CLI tool (check, fix, verify).
+---
+
 # SuperLint Proprietary Workflow
 
 This skill describes the mandatory standard operating procedure for using our internal **SuperLint** tool. Use this when tasks require fixing code quality issues according to corporate standards.
