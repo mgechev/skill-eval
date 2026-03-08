@@ -8,9 +8,6 @@ yarn-error.log*
 
 # Build and TypeScript
 dist/
-*.js
-!jest.config.js
-!*.ts
 
 # Benchmarking Outputs & Reports
 results/
