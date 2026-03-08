@@ -12,7 +12,7 @@ This roadmap delivers the core value of running skill evaluations entirely offli
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: CI Foundation** - GitHub Actions workflow for typecheck, build, and deterministic tests with npm caching
+- [x] **Phase 1: CI Foundation** - GitHub Actions workflow for typecheck, build, and deterministic tests with npm caching
 - [ ] **Phase 2: Local LLM Grader** - Ollama-backed grader replacing cloud API calls, with health checks, structured output, and graceful degradation
 - [ ] **Phase 3: CI Evaluation Pipeline** - Ollama in CI with model caching, skill-eval workflow on PRs, and result artifacts
 
@@ -29,7 +29,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Plans**: 1 plan
 
 Plans:
-- [ ] 01-01-PLAN.md -- Complete CI foundation: package.json scripts, composite action, and GitHub Actions workflow with 4 parallel jobs
+- [x] 01-01-PLAN.md -- Complete CI foundation: package.json scripts, composite action, and GitHub Actions workflow with 4 parallel jobs
 
 ### Phase 2: Local LLM Grader
 **Goal**: Users can grade agent output using a local Ollama model instead of cloud APIs, with no API keys required
@@ -68,6 +68,6 @@ Phases execute in numeric order: 1 -> 2 -> 3
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. CI Foundation | 0/1 | Planning complete | - |
+| 1. CI Foundation | 1/1 | Complete | 2026-03-08 |
 | 2. Local LLM Grader | 0/? | Not started | - |
 | 3. CI Evaluation Pipeline | 0/? | Not started | - |
