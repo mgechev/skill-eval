@@ -46,7 +46,7 @@ Plans:
 Plans:
 - [x] 02-01-PLAN.md -- Ollama grader integration: callOllama with retry, health/model checks, fallback chain, and SKILL.md frontmatter
 - [x] 02-02-PLAN.md -- Regression verification: confirm deterministic grader still scores 1.0, user verifies with real Ollama
-- [ ] 02-03-PLAN.md -- Gap closure: fix prefix match logic bug in checkOllamaAvailability model name matching
+- [x] 02-03-PLAN.md -- Gap closure: fix prefix match logic bug in checkOllamaAvailability model name matching
 - [ ] 02-04-PLAN.md -- Gap closure: prepend workspace bin/ to PATH in LocalProvider.runCommand
 - [ ] 02-05-PLAN.md -- Gap closure: verify Node.js environment for LocalProvider subprocesses (human)
 
@@ -72,5 +72,5 @@ Phases execute in numeric order: 1 -> 2 -> 3
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. CI Foundation | 1/1 | Complete | 2026-03-08 |
-| 2. Local LLM Grader | 2/5 | Gap closure | - |
+| 2. Local LLM Grader | 3/5 | Gap closure | - |
 | 3. CI Evaluation Pipeline | 0/? | Not started | - |
