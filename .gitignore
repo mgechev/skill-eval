@@ -30,3 +30,6 @@ secret_logs/
 .idea/
 *.swp
 *.swo
+
+# GSD symlink
+planning
