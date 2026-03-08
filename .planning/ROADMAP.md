@@ -13,7 +13,7 @@ This roadmap delivers the core value of running skill evaluations entirely offli
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: CI Foundation** - GitHub Actions workflow for typecheck, build, and deterministic tests with npm caching
-- [x] **Phase 2: Local LLM Grader** - Ollama-backed grader replacing cloud API calls, with health checks, structured output, and graceful degradation
+- [ ] **Phase 2: Local LLM Grader** - Ollama-backed grader replacing cloud API calls, with health checks, structured output, and graceful degradation
 - [ ] **Phase 3: CI Evaluation Pipeline** - Ollama in CI with model caching, skill-eval workflow on PRs, and result artifacts
 
 ## Phase Details
@@ -41,11 +41,12 @@ Plans:
   3. Starting an evaluation when the required model is not pulled fails immediately with a message naming the missing model
   4. Existing deterministic graders (test.sh) still score 1.0 on the superlint task -- local LLM grading does not break them
   5. When Ollama is absent but cloud API keys are present, grading falls back to cloud graders with a warning (graceful degradation)
-**Plans**: 2 plans
+**Plans**: 3 plans
 
 Plans:
 - [x] 02-01-PLAN.md -- Ollama grader integration: callOllama with retry, health/model checks, fallback chain, and SKILL.md frontmatter
 - [x] 02-02-PLAN.md -- Regression verification: confirm deterministic grader still scores 1.0, user verifies with real Ollama
+- [ ] 02-03-PLAN.md -- Gap closure: fix prefix match logic bug in checkOllamaAvailability model name matching
 
 ### Phase 3: CI Evaluation Pipeline
 **Goal**: PRs automatically run skill evaluations with the local LLM grader on GitHub runners, with results available for cross-run comparison
@@ -69,5 +70,5 @@ Phases execute in numeric order: 1 -> 2 -> 3
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. CI Foundation | 1/1 | Complete | 2026-03-08 |
-| 2. Local LLM Grader | 2/2 | Complete | 2026-03-08 |
+| 2. Local LLM Grader | 2/3 | Gap closure | - |
 | 3. CI Evaluation Pipeline | 0/? | Not started | - |
