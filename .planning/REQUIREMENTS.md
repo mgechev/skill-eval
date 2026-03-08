@@ -88,32 +88,30 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| CI-01 | Phase ? | Pending |
-| CI-02 | Phase ? | Pending |
-| CI-03 | Phase ? | Pending |
-| CI-04 | Phase ? | Pending |
-| CI-05 | Phase ? | Pending |
-| CI-06 | Phase ? | Pending |
-| GRADE-01 | Phase ? | Pending |
-| GRADE-02 | Phase ? | Pending |
-| GRADE-03 | Phase ? | Pending |
-| GRADE-04 | Phase ? | Pending |
-| GRADE-05 | Phase ? | Pending |
-| GRADE-06 | Phase ? | Pending |
-| GRADE-07 | Phase ? | Pending |
-| GRADE-08 | Phase ? | Pending |
-| OLLAMA-01 | Phase ? | Pending |
-| OLLAMA-02 | Phase ? | Pending |
-| TASK-01 | Phase ? | Pending |
-| OLLAMA-01 | Phase ? | Pending |
-| OLLAMA-02 | Phase ? | Pending |
-| OLLAMA-03 | Phase ? | Pending |
+| CI-01 | Phase 1 | Pending |
+| CI-02 | Phase 1 | Pending |
+| CI-03 | Phase 3 | Pending |
+| CI-04 | Phase 3 | Pending |
+| CI-05 | Phase 3 | Pending |
+| CI-06 | Phase 3 | Pending |
+| GRADE-01 | Phase 2 | Pending |
+| GRADE-02 | Phase 2 | Pending |
+| GRADE-03 | Phase 2 | Pending |
+| GRADE-04 | Phase 2 | Pending |
+| GRADE-05 | Phase 2 | Pending |
+| GRADE-06 | Phase 2 | Pending |
+| GRADE-07 | Phase 2 | Pending |
+| GRADE-08 | Phase 2 | Pending |
+| TASK-01 | Phase 2 | Pending |
+| OLLAMA-01 | Phase 2 | Pending |
+| OLLAMA-02 | Phase 2 | Pending |
+| OLLAMA-03 | Phase 2 | Pending |
 
 **Coverage:**
 - v1 requirements: 18 total
-- Mapped to phases: 0
-- Unmapped: 18
+- Mapped to phases: 18
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-08*
-*Last updated: 2026-03-08 after initial definition*
+*Last updated: 2026-03-08 after roadmap creation*
