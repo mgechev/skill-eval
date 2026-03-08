@@ -239,6 +239,7 @@ Respond with ONLY a JSON object: {"score": <number>, "reasoning": "<brief explan
             });
 
             if (!response.ok) {
+                console.warn(`[LLMGrader] Ollama returned HTTP ${response.status}`);
                 return null;
             }
 
@@ -246,7 +247,8 @@ Respond with ONLY a JSON object: {"score": <number>, "reasoning": "<brief explan
             const text = data?.response || '';
 
             return this.parseResponse(text, config);
-        } catch {
+        } catch (err: any) {
+            console.warn(`[LLMGrader] Ollama call failed: ${err?.message || err}`);
             return null;
         }
     }
