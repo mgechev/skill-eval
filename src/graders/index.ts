@@ -205,8 +205,8 @@ Respond with ONLY a JSON object: {"score": <number>, "reasoning": "<brief explan
             const modelFound = models.some((m: any) => {
                 const name: string = m.name || '';
 
-                // Exact match or prefix match (e.g., "qwen3:4b" matches "qwen3:4b", "qwen3" matches "qwen3:latest")
-                return name === model || name.split(':')[0] === model.split(':')[0] && name === model;
+                // Exact match, or prefix match when user omits tag (e.g., "qwen3" matches "qwen3:latest")
+                return name === model || (name.split(':')[0] === model.split(':')[0] && !model.includes(':'));
             });
 
             if (!modelFound) {
