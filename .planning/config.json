@@ -1,6 +1,9 @@
 {
+  "mode": "yolo",
+  "granularity": "coarse",
   "model_profile": "quality",
   "commit_docs": true,
+  "parallelization": false,
   "search_gitignored": false,
   "branching_strategy": "none",
   "phase_branch_template": "gsd/phase-{phase}-{slug}",
@@ -10,11 +13,11 @@
     "plan_check": true,
     "verifier": true,
     "nyquist_validation": true,
-    "auto_advance": false
+    "auto_advance": true,
+    "_auto_chain_active": true
   },
   "git": {
     "branching_strategy": "none"
   },
-  "parallelization": true,
   "brave_search": false
 }
