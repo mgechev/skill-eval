@@ -13,7 +13,7 @@ This roadmap delivers the core value of running skill evaluations entirely offli
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: CI Foundation** - GitHub Actions workflow for typecheck, build, and deterministic tests with npm caching
-- [ ] **Phase 2: Local LLM Grader** - Ollama-backed grader replacing cloud API calls, with health checks, structured output, and graceful degradation
+- [x] **Phase 2: Local LLM Grader** - Ollama-backed grader replacing cloud API calls, with health checks, structured output, and graceful degradation
 - [ ] **Phase 3: CI Evaluation Pipeline** - Ollama in CI with model caching, skill-eval workflow on PRs, and result artifacts
 
 ## Phase Details
@@ -50,7 +50,7 @@ Plans:
 - [x] 02-04-PLAN.md -- Gap closure: prepend workspace bin/ to PATH in LocalProvider.runCommand
 - [x] 02-05-PLAN.md -- Gap closure: verify Node.js environment for LocalProvider subprocesses (human)
 - [x] 02-06-PLAN.md -- Gap closure: fix LocalProvider PATH separator for MSYS2 bash and suppress BASH_ENV
-- [ ] 02-07-PLAN.md -- Gap closure: fix Ollama grader timeout (60s), add num_ctx 4096, surface grader failure details
+- [x] 02-07-PLAN.md -- Gap closure: fix Ollama grader timeout (60s), add num_ctx 4096, surface grader failure details
 
 ### Phase 3: CI Evaluation Pipeline
 **Goal**: PRs automatically run skill evaluations with the local LLM grader on GitHub runners, with results available for cross-run comparison
@@ -74,5 +74,5 @@ Phases execute in numeric order: 1 -> 2 -> 3
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. CI Foundation | 1/1 | Complete | 2026-03-08 |
-| 2. Local LLM Grader | 6/7 | In Progress | - |
+| 2. Local LLM Grader | 7/7 | Complete | 2026-03-08 |
 | 3. CI Evaluation Pipeline | 0/? | Not started | - |
