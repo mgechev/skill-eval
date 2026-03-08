@@ -52,7 +52,7 @@ export class DeterministicGrader implements Grader {
 
 /**
  * Uses an LLM to evaluate the agent's session transcript against a rubric.
- * Requires GEMINI_API_KEY or ANTHROPIC_API_KEY in the environment.
+ * Tries Ollama first (local, no API key), then falls back to Gemini/Anthropic cloud providers.
  */
 export class LLMGrader implements Grader {
     async grade(
@@ -124,13 +124,47 @@ ${transcript}
 
 Respond with ONLY a JSON object: {"score": <number>, "reasoning": "<brief explanation>"}`;
 
-        // Try Gemini API first, fall back to Anthropic
+        // Provider fallback chain: Ollama (local) -> Gemini (cloud) -> Anthropic (cloud)
+        const ollamaHost = env?.OLLAMA_HOST || process.env.OLLAMA_HOST || 'http://localhost:11434';
+        const model = config.model || 'qwen3:4b';
         const apiKey = env?.GEMINI_API_KEY || process.env.GEMINI_API_KEY;
         const anthropicKey = env?.ANTHROPIC_API_KEY || process.env.ANTHROPIC_API_KEY;
 
+        // 1. Try Ollama first (no API key needed)
+        const ollamaStatus = await this.checkOllamaAvailability(ollamaHost, model);
+
+        if (ollamaStatus.available) {
+            const ollamaResult = await this.callOllamaWithRetry(prompt, ollamaHost, config);
+
+            if (ollamaResult) {
+                return ollamaResult;
+            }
+
+            // Unexpected: availability passed but call failed -- fall through to cloud
+        }
+
+        if (!ollamaStatus.available) {
+            if (!apiKey && !anthropicKey) {
+                // Fail fast: no Ollama and no cloud keys
+                return {
+                    grader_type: 'llm_rubric',
+                    score: 0,
+                    weight: config.weight,
+                    details: `Ollama is ${ollamaStatus.error}. No LLM grading available (Ollama not running, no GEMINI_API_KEY or ANTHROPIC_API_KEY set)`
+                };
+            }
+
+            // Graceful degradation: warn and fall through to cloud
+            console.warn(`[LLMGrader] Ollama unavailable (${ollamaStatus.error}), falling back to cloud provider`);
+        }
+
+        // 2. Try Gemini
         if (apiKey) {
             return this.callGemini(prompt, apiKey, config);
-        } else if (anthropicKey) {
+        }
+
+        // 3. Try Anthropic
+        if (anthropicKey) {
             return this.callAnthropic(prompt, anthropicKey, config);
         }
 
@@ -138,8 +172,120 @@ Respond with ONLY a JSON object: {"score": <number>, "reasoning": "<brief explan
             grader_type: 'llm_rubric',
             score: 0,
             weight: config.weight,
-            details: 'No API key available for LLM grading (set GEMINI_API_KEY or ANTHROPIC_API_KEY)'
+            details: 'No LLM grading available (Ollama not running, no GEMINI_API_KEY or ANTHROPIC_API_KEY set)'
         };
+    }
+
+    private async checkOllamaAvailability(ollamaHost: string, model: string): Promise<{ available: boolean; error?: string }> {
+        // Health check with 5s timeout
+        try {
+            const healthResponse = await fetch(`${ollamaHost}/`, {
+                signal: AbortSignal.timeout(5000),
+            });
+
+            if (!healthResponse.ok) {
+                return { available: false, error: `Ollama health check failed (HTTP ${healthResponse.status})` };
+            }
+        } catch {
+            return { available: false, error: `Ollama is not running at ${ollamaHost}. Start it with: ollama serve` };
+        }
+
+        // Model availability check
+        try {
+            const tagsResponse = await fetch(`${ollamaHost}/api/tags`, {
+                signal: AbortSignal.timeout(5000),
+            });
+            const tagsData = await tagsResponse.json() as any;
+            const models: any[] = tagsData?.models || [];
+
+            const modelFound = models.some((m: any) => {
+                const name: string = m.name || '';
+
+                // Exact match or prefix match (e.g., "qwen3:4b" matches "qwen3:4b", "qwen3" matches "qwen3:latest")
+                return name === model || name.split(':')[0] === model.split(':')[0] && name === model;
+            });
+
+            if (!modelFound) {
+                return { available: false, error: `Ollama is running but model "${model}" is not pulled. Run: ollama pull ${model}` };
+            }
+        } catch {
+            return { available: false, error: `Ollama is not running at ${ollamaHost}. Start it with: ollama serve` };
+        }
+
+        return { available: true };
+    }
+
+    private async callOllama(prompt: string, ollamaHost: string, config: GraderConfig): Promise<GraderResult | null> {
+        const model = config.model || 'qwen3:4b';
+
+        try {
+            const response = await fetch(`${ollamaHost}/api/generate`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    model,
+                    prompt,
+                    stream: false,
+                    format: {
+                        type: 'object',
+                        properties: {
+                            score: { type: 'number' },
+                            reasoning: { type: 'string' },
+                        },
+                        required: ['score', 'reasoning'],
+                    },
+                    options: {
+                        temperature: 0,
+                        num_predict: 512,
+                    },
+                }),
+                signal: AbortSignal.timeout(300000), // 5 min timeout for generation
+            });
+
+            if (!response.ok) {
+                return null;
+            }
+
+            const data = await response.json() as any;
+            const text = data?.response || '';
+
+            return this.parseResponse(text, config);
+        } catch {
+            return null;
+        }
+    }
+
+    private async callOllamaWithRetry(prompt: string, ollamaHost: string, config: GraderConfig, maxRetries: number = 3): Promise<GraderResult | null> {
+        let lastResult: GraderResult | null = null;
+
+        for (let attempt = 1; attempt <= maxRetries; attempt++) {
+            const result = await this.callOllama(prompt, ollamaHost, config);
+
+            // Connection error: return null immediately, no retry
+            if (result === null) {
+                return null;
+            }
+
+            lastResult = result;
+
+            // Successful parse (score > 0): return immediately
+            if (result.score > 0) {
+                return result;
+            }
+
+            // Parse failure (score=0 with "Failed to parse"): retry unless last attempt
+            if (result.details.startsWith('Failed to parse') && attempt < maxRetries) {
+                await new Promise(resolve => setTimeout(resolve, attempt * 1000));
+                continue;
+            }
+
+            // Last attempt or score=0 with valid parse: return as-is
+            if (attempt === maxRetries) {
+                return null;
+            }
+        }
+
+        return lastResult;
     }
 
     private async callGemini(prompt: string, apiKey: string, config: GraderConfig): Promise<GraderResult> {
