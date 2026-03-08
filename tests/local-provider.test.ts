@@ -23,8 +23,9 @@ async function runTests() {
 
     // Test 1: workspace bin/ is on PATH
     try {
-        // Create a minimal workspace with a bin/ directory
-        const workspace = path.join(os.tmpdir(), `test-provider-${Date.now()}`);
+        // Create a minimal workspace with a unique directory name
+        const workspaceId = `test-provider-${Date.now()}`;
+        const workspace = path.join(os.tmpdir(), workspaceId);
         await fs.ensureDir(path.join(workspace, 'bin'));
 
         // Write a small script that echoes PATH
@@ -32,10 +33,14 @@ async function runTests() {
         await fs.writeFile(scriptPath, '#!/bin/bash\necho "$PATH"', { mode: 0o755 });
 
         const result = await provider.runCommand(workspace, 'echo "$PATH"');
-        const pathEntries = result.stdout.trim().split(':');
-        const expectedBin = path.join(workspace, 'bin');
+        const firstEntry = result.stdout.trim().split(':')[0];
 
-        assert(pathEntries[0] === expectedBin, `Expected first PATH entry to be ${expectedBin}, got ${pathEntries[0]}`);
+        // On Windows with Git Bash, paths are MSYS-translated (e.g., /tmp/... instead of C:\Users\...\Temp\...)
+        // so we verify the first PATH entry ends with /bin and contains the workspace ID
+        assert(firstEntry.endsWith('/bin') || firstEntry.endsWith('\\bin'),
+            `Expected first PATH entry to end with /bin, got ${firstEntry}`);
+        assert(firstEntry.includes(workspaceId),
+            `Expected first PATH entry to include workspace ID '${workspaceId}', got ${firstEntry}`);
         assert(result.exitCode === 0, `Expected exit code 0, got ${result.exitCode}`);
 
         await fs.remove(workspace);

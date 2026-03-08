@@ -36,10 +36,17 @@ export class LocalProvider implements EnvironmentProvider {
 
     async runCommand(workspacePath: string, command: string, env?: Record<string, string>): Promise<CommandResult> {
         return new Promise((resolve) => {
+            const binDir = path.join(workspacePath, 'bin');
+            const currentPath = env?.PATH ?? process.env.PATH ?? '';
+
             const child = spawn(command, {
                 shell: 'bash',
                 cwd: workspacePath,
-                env: { ...process.env, ...env }
+                env: {
+                    ...process.env,
+                    ...env,
+                    PATH: `${binDir}${path.delimiter}${currentPath}`,
+                },
             });
 
             let stdout = '';
