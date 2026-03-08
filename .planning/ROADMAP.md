@@ -26,10 +26,10 @@ Decimal phases appear between their surrounding integers in numeric order.
   1. A pull request triggers a GitHub Actions workflow that runs typecheck, build, test:bootstrap, and test:analytics as separate jobs
   2. A second PR run completes faster than the first due to npm package caching
   3. A PR with a type error or failing test is blocked from merging (CI reports failure)
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
-- [ ] 01-01: TBD
+- [ ] 01-01-PLAN.md -- Complete CI foundation: package.json scripts, composite action, and GitHub Actions workflow with 4 parallel jobs
 
 ### Phase 2: Local LLM Grader
 **Goal**: Users can grade agent output using a local Ollama model instead of cloud APIs, with no API keys required
@@ -68,6 +68,6 @@ Phases execute in numeric order: 1 -> 2 -> 3
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. CI Foundation | 0/? | Not started | - |
+| 1. CI Foundation | 0/1 | Planning complete | - |
 | 2. Local LLM Grader | 0/? | Not started | - |
 | 3. CI Evaluation Pipeline | 0/? | Not started | - |
