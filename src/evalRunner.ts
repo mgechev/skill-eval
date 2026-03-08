@@ -248,6 +248,12 @@ export class EvalRunner {
             const status = reward >= 0.5 ? '✓' : '✗';
             console.log(`${status} reward=${reward.toFixed(2)} (${(duration_ms / 1000).toFixed(1)}s, ${commandCount} cmds, ~${input_tokens + output_tokens} tokens)`);
 
+            for (const gr of graderResults) {
+                if (gr.score < 0.5) {
+                    console.log(`     [${gr.grader_type}] score=${gr.score.toFixed(2)} — ${gr.details}`);
+                }
+            }
+
             return {
                 trial_id: index + 1,
                 reward,
