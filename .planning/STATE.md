@@ -86,9 +86,7 @@ Recent decisions affecting current work:
 
 ### Pending Todos
 
-3 pending:
-- Add task bin directory to PATH in LocalProvider (tooling)
-- Fix Node.js not found in LocalProvider workspace (tooling)
+1 pending:
 - Ollama LLM grader times out in bootstrap test on ARM64 (testing)
 
 ### Blockers/Concerns
