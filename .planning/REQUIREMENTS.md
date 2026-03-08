@@ -25,7 +25,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **GRADE-05**: Existing rubric prompt files (prompts/*.md) reused unchanged
 - [x] **GRADE-06**: Robust structured JSON output parsing with fallback for malformed local model output
 - [x] **GRADE-07**: Temperature=0 for deterministic grading behavior
-- [ ] **GRADE-08**: Deterministic grader must still score 1.0 (local LLM grader does not break existing deterministic grading)
+- [x] **GRADE-08**: Deterministic grader must still score 1.0 (local LLM grader does not break existing deterministic grading)
 
 ### Task Structure
 
@@ -101,7 +101,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | GRADE-05 | Phase 2 | Complete |
 | GRADE-06 | Phase 2 | Complete |
 | GRADE-07 | Phase 2 | Complete |
-| GRADE-08 | Phase 2 | Pending |
+| GRADE-08 | Phase 2 | Complete |
 | TASK-01 | Phase 2 | Complete |
 | OLLAMA-01 | Phase 2 | Complete |
 | OLLAMA-02 | Phase 2 | Complete |
