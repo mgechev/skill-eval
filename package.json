@@ -4,10 +4,16 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "typecheck": "tsc --noEmit",
+    "build": "tsc",
     "test:bootstrap": "ts-node tests/bootstrap.test.ts",
     "test:analytics": "ts-node tests/analytics.test.ts",
     "eval": "ts-node src/cli.ts",
+    "eval:superlint": "npm run eval -- superlint_demo --agent=claude --provider=local",
+    "eval:superlint:docker": "npm run eval -- superlint_demo --agent=claude --provider=docker",
     "validate": "ts-node src/cli.ts --validate",
+    "validate:superlint": "npm run validate -- superlint_demo --provider=local",
+    "validate:superlint:docker": "npm run validate -- superlint_demo --provider=docker",
     "analyze": "ts-node src/analytics/analyze.ts",
     "preview": "ts-node src/preview.ts",
     "viewer": "ts-node src/preview.ts browser"
