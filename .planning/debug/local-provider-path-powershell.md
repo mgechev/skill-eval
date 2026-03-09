@@ -1,5 +1,5 @@
 ---
-status: awaiting_human_verify
+status: resolved
 trigger: "LocalProvider PATH augmentation fails from PowerShell — workspace bin/ not preceding /usr/bin, custom env vars empty"
 created: 2026-03-09T00:00:00Z
 updated: 2026-03-09T13:00:00Z

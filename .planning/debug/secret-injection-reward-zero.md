@@ -1,5 +1,5 @@
 ---
-status: diagnosed
+status: resolved
 trigger: "Investigate why the Secret Injection & Sanitization test in bootstrap.test.ts fails with reward=0.00"
 created: 2026-03-09T00:30:00.000Z
 updated: 2026-03-09T00:35:00.000Z
