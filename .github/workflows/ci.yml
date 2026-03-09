@@ -30,14 +30,10 @@ jobs:
     name: Test (integration)
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 20
-    env:
-      OLLAMA_FLASH_ATTENTION: '1'
-      OLLAMA_KV_CACHE_TYPE: 'q8_0'
-      OLLAMA_NUM_PARALLEL: '1'
-      OLLAMA_NUM_THREAD: '4'
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-node
+      - uses: ./.github/actions/setup-ollama
       - run: npm run test:bootstrap
 
   test-unit:
