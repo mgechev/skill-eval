@@ -99,10 +99,11 @@ Recent decisions affecting current work:
 
 ### Pending Todos
 
-3 pending:
+4 pending:
 - Ollama LLM grader times out in bootstrap test on ARM64 (testing)
 - Add package.json scripts and CI workflow steps for Phase 2 tests (tooling)
 - Add @types/node to test file resolution path (testing)
+- Apply and verify Docker image speed optimizations (providers)
 
 ### Roadmap Evolution
 
