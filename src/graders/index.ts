@@ -64,6 +64,12 @@ export class LLMGrader implements Grader {
 
         this.warnedAboutConfig = true;
 
+        // Only warn in CI -- optimized env vars improved benchmarks on 4-vCPU CI
+        // runners (12s -> 6.3s) but had no effect on local 12-core Snapdragon X Elite.
+        if (!process.env.CI) {
+            return;
+        }
+
         const warnings: string[] = [];
 
         if (!process.env.OLLAMA_FLASH_ATTENTION) {
