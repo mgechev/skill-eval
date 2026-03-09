@@ -10,6 +10,7 @@
     "test:ollama-grader": "ts-node tests/ollama-grader.test.ts",
     "test:docker-cache": "ts-node tests/docker-cache.test.ts",
     "test:local-provider": "ts-node tests/local-provider.test.ts",
+    "test:benchmark": "ts-node tests/benchmark-grader.ts",
     "eval": "ts-node src/cli.ts",
     "eval:superlint": "npm run eval -- superlint_demo --agent=claude --provider=local",
     "eval:superlint:docker": "npm run eval -- superlint_demo --agent=claude --provider=docker",
