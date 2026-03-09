@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: "Benchmark harness created (Plan 01); next: CI benchmark workflow (Plan 02)"
-stopped_at: Completed 02.1-01-PLAN.md
-last_updated: "2026-03-09T11:36:50.959Z"
-last_activity: 2026-03-09 -- Phase 2.1 Plan 01 complete (benchmark harness)
+status: "CI benchmark workflow created (Plan 02); next: run benchmarks and analyze results (Plan 03)"
+stopped_at: Completed 02.1-02-PLAN.md
+last_updated: "2026-03-09T11:40:34Z"
+last_activity: 2026-03-09 -- Phase 2.1 Plan 02 complete (CI benchmark workflow)
 progress:
   total_phases: 4
   completed_phases: 2
   total_plans: 13
-  completed_plans: 10
-  percent: 77
+  completed_plans: 11
+  percent: 85
 ---
 
 # Project State
@@ -26,18 +26,18 @@ See: .planning/PROJECT.md (updated 2026-03-08)
 ## Current Position
 
 Phase: 2.1 of 3 (Optimize Grader Model Selection) -- IN PROGRESS
-Plan: 1 of 4 in current phase -- COMPLETE
-Status: Benchmark harness created (Plan 01); next: CI benchmark workflow (Plan 02)
-Last activity: 2026-03-09 -- Phase 2.1 Plan 01 complete (benchmark harness)
+Plan: 2 of 4 in current phase -- COMPLETE
+Status: CI benchmark workflow created (Plan 02); next: run benchmarks and analyze results (Plan 03)
+Last activity: 2026-03-09 -- Phase 2.1 Plan 02 complete (CI benchmark workflow)
 
-Progress: [████████░░] 77%
+Progress: [████████░░] 85%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 10
+- Total plans completed: 11
 - Average duration: 4 min
-- Total execution time: 43 min
+- Total execution time: 45 min
 
 **By Phase:**
 
@@ -45,10 +45,10 @@ Progress: [████████░░] 77%
 |-------|-------|-------|----------|
 | 1. CI Foundation | 1/1 | 3 min | 3 min |
 | 2. Local LLM Grader | 8/8 | 36 min | 5 min |
-| 2.1. Optimize Grader Model Selection | 1/4 | 4 min | 4 min |
+| 2.1. Optimize Grader Model Selection | 2/4 | 6 min | 3 min |
 
 **Recent Trend:**
-- Last 5 plans: 02-06 (2 min), 02-07 (2 min), 02-08 (3 min), Quick-03 (5 min), 02.1-01 (4 min)
+- Last 5 plans: 02-07 (2 min), 02-08 (3 min), Quick-03 (5 min), 02.1-01 (4 min), 02.1-02 (2 min)
 - Trend: stable
 
 *Updated after each plan completion*
@@ -65,6 +65,7 @@ Progress: [████████░░] 77%
 | Quick P02 | 1min | 1 tasks | 2 files |
 | Quick P03 | 5min | 2 tasks | 3 files |
 | Phase 02.1 P01 | 4min | 2 tasks | 5 files |
+| Phase 02.1 P02 | 2min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -107,6 +108,8 @@ Recent decisions affecting current work:
 - [Phase 02.1]: Benchmark script standalone -- copies prompt construction from LLMGrader, no imports from src/
 - [Phase 02.1]: JSON Schema structured output as default format with no-schema fallback per model
 - [Phase 02.1]: 120s hard timeout per /api/generate call; CPU cores detected at runtime for num_thread
+- [Phase 02.1]: 60-minute CI workflow timeout accounts for model pull time plus benchmark execution
+- [Phase 02.1]: OLLAMA_NUM_THREAD=4 hardcoded for CI 4-vCPU runners (vs 12 for local Snapdragon)
 
 ### Pending Todos
 
@@ -130,6 +133,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-09T11:36:50.956Z
-Stopped at: Completed 02.1-01-PLAN.md
+Last session: 2026-03-09T11:40:34Z
+Stopped at: Completed 02.1-02-PLAN.md
 Resume file: None
