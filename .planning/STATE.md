@@ -99,8 +99,7 @@ Recent decisions affecting current work:
 
 ### Pending Todos
 
-3 pending:
-- Add package.json scripts and CI workflow steps for Phase 2 tests (tooling)
+2 pending:
 - Add @types/node to test file resolution path (testing)
 - Apply and verify Docker image speed optimizations (providers)
 
