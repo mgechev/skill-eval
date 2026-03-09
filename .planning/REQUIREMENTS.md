@@ -12,9 +12,9 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **CI-01**: GitHub Actions CI workflow with separate jobs for typecheck, build, test:bootstrap, and test:analytics
 - [x] **CI-02**: npm package caching across CI runs
 - [x] **CI-03**: Ollama installation and model caching across CI runs
-- [ ] **CI-04**: Agent CLI and dependency caching across CI runs
-- [ ] **CI-05**: Separate skill-eval workflow that runs evaluations on PR (matching blog post pattern)
-- [ ] **CI-06**: Eval result artifacts uploaded for cross-run comparison
+- [x] **CI-04**: Agent CLI and dependency caching across CI runs
+- [x] **CI-05**: Separate skill-eval workflow that runs evaluations on PR (matching blog post pattern)
+- [x] **CI-06**: Eval result artifacts uploaded for cross-run comparison
 
 ### Local LLM Grading
 
@@ -91,9 +91,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CI-01 | Phase 1 | Complete |
 | CI-02 | Phase 1 | Complete |
 | CI-03 | Phase 3 | Complete |
-| CI-04 | Phase 3 | Pending |
-| CI-05 | Phase 3 | Pending |
-| CI-06 | Phase 3 | Pending |
+| CI-04 | Phase 3 | Complete |
+| CI-05 | Phase 3 | Complete |
+| CI-06 | Phase 3 | Complete |
 | GRADE-01 | Phase 2 | Complete |
 | GRADE-02 | Phase 2 | Complete |
 | GRADE-03 | Phase 2 | Complete |
