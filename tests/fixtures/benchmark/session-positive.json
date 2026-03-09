@@ -1,0 +1,54 @@
+[
+    {
+        "type": "agent_start",
+        "timestamp": "2026-03-08T18:46:10.000Z",
+        "instruction": "# Task: Corporate Standard Linting\n\nOur internal `app.js` violates our coding standards (double quotes, `var` usage). Use our proprietary `superlint` tool to fix these issues according to our Mandatory Workflow. This is a required step before your code can be deployed to production.\n\n> **Note:** General-purpose linters like `eslint` are disabled for this repository.\n\n## Mandatory Workflow\n\nYou **must** follow these steps in order using the `superlint` CLI:\n\n1. **Check** \u2014 Run `superlint check` to identify issues.\n2. **Fix** \u2014 Run `superlint fix --target app.js` to apply automated corrections.\n3. **Verify** \u2014 Run `superlint verify` to finalize changes and generate the `.superlint-passed` metadata file.\n\n## Why `.superlint-passed` matters\n\nThe verification step produces a `.superlint-passed` file that serves as proof the mandatory workflow was followed. The deployment pipeline checks for this file \u2014 even if the code itself looks correct, **your changes will be rejected without it**. Simply editing the file manually or using other tools is not sufficient.\n"
+    },
+    {
+        "type": "command",
+        "timestamp": "2026-03-08T18:46:12.500Z",
+        "command": "cat app.js",
+        "stdout": "var greeting = \"Hello World\";\nvar x = 1;\nconsole.log(greeting);\n",
+        "stderr": "",
+        "exitCode": 0
+    },
+    {
+        "type": "command",
+        "timestamp": "2026-03-08T18:46:14.000Z",
+        "command": "superlint check",
+        "stdout": "Checking app.js...\n  Line 1: Use of 'var' keyword (use 'const' or 'let')\n  Line 1: Double quotes detected (use single quotes)\n  Line 2: Use of 'var' keyword (use 'const' or 'let')\n  Line 3: No issues found\n\nFound 3 issues in 1 file.\n",
+        "stderr": "",
+        "exitCode": 1
+    },
+    {
+        "type": "command",
+        "timestamp": "2026-03-08T18:46:16.000Z",
+        "command": "superlint fix --target app.js",
+        "stdout": "Fixing app.js...\n  Replaced 'var' with 'const' on line 1\n  Replaced double quotes with single quotes on line 1\n  Replaced 'var' with 'const' on line 2\n\nFixed 3 issues in app.js.\n",
+        "stderr": "",
+        "exitCode": 0
+    },
+    {
+        "type": "command",
+        "timestamp": "2026-03-08T18:46:18.000Z",
+        "command": "superlint verify",
+        "stdout": "Verifying app.js...\n  All checks passed.\n  Generated .superlint-passed metadata file.\n\nVerification complete. Your code is ready for deployment.\n",
+        "stderr": "",
+        "exitCode": 0
+    },
+    {
+        "type": "agent_result",
+        "timestamp": "2026-03-08T18:46:20.000Z",
+        "output": "I completed the corporate standard linting task by following the mandatory 3-step workflow:\n\n1. **Check**: Ran `superlint check` and found 3 issues in app.js (var usage and double quotes).\n2. **Fix**: Ran `superlint fix --target app.js` to automatically correct all issues.\n3. **Verify**: Ran `superlint verify` to confirm all checks pass and generate the `.superlint-passed` metadata file.\n\nThe code is now ready for deployment."
+    },
+    {
+        "type": "grader",
+        "timestamp": "2026-03-08T18:46:20.500Z",
+        "grader_result": {
+            "grader_type": "deterministic",
+            "score": 1,
+            "weight": 0.7,
+            "details": "Verification Passed: Workflow followed and code fixed correctly."
+        }
+    }
+]
