@@ -38,10 +38,16 @@ jobs:
         with:
           version: '0.17.7'
 
+      - name: Compute cache key
+        id: cache-key
+        run: |
+          MODELS="${{ inputs.models || 'phi3.5:3.8b-mini-instruct-q4_K_M,qwen2.5:3b,llama3.2:3b,gemma3:4b,qwen2.5:7b' }}"
+          echo "key=ollama-models-$(echo "$MODELS" | tr ',' '-')" >> "$GITHUB_OUTPUT"
+
       - uses: actions/cache@v5
         with:
           path: ~/.ollama
-          key: ollama-models-${{ inputs.models || 'default-set' }}
+          key: ${{ steps.cache-key.outputs.key }}
           restore-keys: |
             ollama-models-
 
