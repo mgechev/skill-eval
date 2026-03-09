@@ -80,13 +80,14 @@ Plans:
   2. The second evaluation run on the same runner completes faster due to Ollama model caching across CI runs
   3. Evaluation results are uploaded as workflow artifacts and downloadable for comparison across runs
   4. Dependencies (Ollama, agent CLIs, npm packages) are cached across CI runs to reduce setup time
-**Plans**: TBD
+**Plans**: 2 plans
 
 Todos to incorporate:
 - [ ] Add lightweight Ollama model warmup to LLMGrader — send minimal `num_predict:1` request before first grading call to eliminate cold-start timeout waste (see `.planning/todos/pending/2026-03-09-add-lightweight-ollama-model-warmup-to-llmgrader.md`)
 
 Plans:
-- [ ] 03-01: TBD
+- [ ] 03-01-PLAN.md -- LLMGrader warmup (num_predict:1) and reusable setup-ollama composite action
+- [ ] 03-02-PLAN.md -- Skill eval workflow with eval-local and eval-docker jobs, Docker image caching, result artifacts
 
 ## Progress
 
@@ -98,4 +99,4 @@ Phases execute in numeric order: 1 -> 2 -> 2.1 -> 3
 | 1. CI Foundation | 1/1 | Complete | 2026-03-08 |
 | 2. Local LLM Grader | 8/8 | Complete | 2026-03-09 |
 | 2.1. Optimize Grader Model Selection | 4/4 | Complete | 2026-03-09 |
-| 3. CI Evaluation Pipeline | 0/? | Not started | - |
+| 3. CI Evaluation Pipeline | 0/2 | Not started | - |
