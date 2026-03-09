@@ -25,9 +25,19 @@ runs:
         restore-keys: |
           ollama-model-
 
-    - name: Start Ollama
+    - name: Start Ollama with optimized config
       shell: bash
       run: |
+        # Stop server auto-started by setup-ollama, restart with optimized env
+        pkill ollama 2>/dev/null || true
+        sleep 1
+
+        # Export to GITHUB_ENV so subsequent steps (npm run validate) see them
+        echo "OLLAMA_FLASH_ATTENTION=1" >> "$GITHUB_ENV"
+        echo "OLLAMA_KV_CACHE_TYPE=q8_0" >> "$GITHUB_ENV"
+        echo "OLLAMA_NUM_PARALLEL=1" >> "$GITHUB_ENV"
+        echo "OLLAMA_NUM_THREAD=4" >> "$GITHUB_ENV"
+
         OLLAMA_FLASH_ATTENTION=1 \
         OLLAMA_KV_CACHE_TYPE=q8_0 \
         OLLAMA_NUM_PARALLEL=1 \
