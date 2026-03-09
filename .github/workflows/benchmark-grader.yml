@@ -1,0 +1,113 @@
+name: Benchmark Grader Models
+
+on:
+  workflow_dispatch:
+    inputs:
+      models:
+        description: 'Comma-separated model tags to benchmark'
+        required: false
+        default: 'phi3.5:3.8b-mini-instruct-q4_K_M,qwen2.5:3b,llama3.2:3b,gemma3:4b,qwen2.5:7b'
+      profile:
+        description: 'Tuning profile: default, optimized-env, optimized-all, or all'
+        required: false
+        default: 'all'
+  pull_request: # Temporary during Phase 2.1 development -- REMOVE before phase completes
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_OPTIONS: '--max-old-space-size=4096'
+
+jobs:
+  benchmark:
+    name: Benchmark
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ./.github/actions/setup-node
+
+      # ARM64 support: downloads ollama-linux-arm64 binary
+      - uses: ai-action/setup-ollama@v2
+        with:
+          version: '0.17.7'
+
+      - uses: actions/cache@v5
+        with:
+          path: ~/.ollama
+          key: ollama-models-${{ inputs.models || 'default-set' }}
+          restore-keys: |
+            ollama-models-
+
+      - name: Start Ollama (default profile)
+        run: |
+          ollama serve &
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:11434/ > /dev/null 2>&1 && break
+            sleep 1
+          done
+          echo "[OK] Ollama ready"
+
+      - name: Pull models
+        run: |
+          IFS=',' read -ra MODELS <<< "${{ inputs.models || 'phi3.5:3.8b-mini-instruct-q4_K_M,qwen2.5:3b,llama3.2:3b,gemma3:4b,qwen2.5:7b' }}"
+          for model in "${MODELS[@]}"; do
+            echo "[INFO] Pulling $model..."
+            ollama pull "$model"
+          done
+
+      - name: Benchmark (default profile)
+        if: ${{ inputs.profile == 'default' || inputs.profile == 'all' || inputs.profile == '' }}
+        run: |
+          MODELS_ARG=""
+          if [ -n "${{ inputs.models }}" ]; then
+            MODELS_ARG="--models ${{ inputs.models }}"
+          fi
+          npx ts-node tests/benchmark-grader.ts --profile default --output benchmark-results/ci-default.json $MODELS_ARG
+
+      - name: Restart Ollama (optimized profile)
+        if: ${{ inputs.profile == 'optimized-env' || inputs.profile == 'optimized-all' || inputs.profile == 'all' || inputs.profile == '' }}
+        run: |
+          pkill -f "ollama serve" || true
+          sleep 2
+          OLLAMA_FLASH_ATTENTION=1 \
+          OLLAMA_KV_CACHE_TYPE=q8_0 \
+          OLLAMA_NUM_PARALLEL=1 \
+          OLLAMA_NUM_THREAD=4 \
+          ollama serve &
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:11434/ > /dev/null 2>&1 && break
+            sleep 1
+          done
+          echo "[OK] Ollama ready (optimized)"
+
+      - name: Benchmark (optimized-env profile)
+        if: ${{ inputs.profile == 'optimized-env' || inputs.profile == 'all' || inputs.profile == '' }}
+        run: |
+          MODELS_ARG=""
+          if [ -n "${{ inputs.models }}" ]; then
+            MODELS_ARG="--models ${{ inputs.models }}"
+          fi
+          npx ts-node tests/benchmark-grader.ts --profile optimized-env --output benchmark-results/ci-optimized-env.json $MODELS_ARG
+
+      - name: Benchmark (optimized-all profile)
+        if: ${{ inputs.profile == 'optimized-all' || inputs.profile == 'all' || inputs.profile == '' }}
+        run: |
+          MODELS_ARG=""
+          if [ -n "${{ inputs.models }}" ]; then
+            MODELS_ARG="--models ${{ inputs.models }}"
+          fi
+          npx ts-node tests/benchmark-grader.ts --profile optimized-all --output benchmark-results/ci-optimized-all.json $MODELS_ARG
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: benchmark-results
+          path: benchmark-results/
+          retention-days: 30
