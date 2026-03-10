@@ -12,6 +12,8 @@
     "test:local-provider": "ts-node tests/local-provider.test.ts",
     "test:benchmark": "ts-node tests/benchmark-grader.ts",
     "test:modelfile-config": "ts-node tests/modelfile-config.test.ts",
+    "test:permissions": "ts-node tests/permissions.test.ts",
+    "test:path-traversal": "ts-node tests/path-traversal.test.ts",
     "eval": "ts-node src/cli.ts",
     "eval:superlint": "npm run eval -- superlint_demo --agent=claude --provider=local",
     "eval:superlint:docker": "npm run eval -- superlint_demo --agent=claude --provider=docker",
