@@ -11,6 +11,7 @@
     "test:docker-cache": "ts-node tests/docker-cache.test.ts",
     "test:local-provider": "ts-node tests/local-provider.test.ts",
     "test:benchmark": "ts-node tests/benchmark-grader.ts",
+    "test:modelfile-config": "ts-node tests/modelfile-config.test.ts",
     "eval": "ts-node src/cli.ts",
     "eval:superlint": "npm run eval -- superlint_demo --agent=claude --provider=local",
     "eval:superlint:docker": "npm run eval -- superlint_demo --agent=claude --provider=docker",
@@ -32,6 +33,7 @@
     "@types/dockerode": "^4.0.1",
     "@types/fs-extra": "^11.0.4",
     "@types/node": "^24.12.0",
+    "@types/picomatch": "^4.0.2",
     "@types/tar-stream": "^3.1.3",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3"
@@ -39,6 +41,8 @@
   "dependencies": {
     "dockerode": "^4.0.9",
     "fs-extra": "^11.3.3",
+    "ollama": "^0.6.3",
+    "picomatch": "^4.0.3",
     "tar-stream": "^3.1.7",
     "toml": "^3.0.0"
   }
