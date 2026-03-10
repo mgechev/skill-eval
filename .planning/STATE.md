@@ -1,32 +1,34 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.0
-milestone_name: Local Skill Eval
-status: archived
-stopped_at: "v1.0 milestone completed and archived"
-last_updated: "2026-03-09T22:30:00Z"
-last_activity: 2026-03-09 -- v1.0 milestone completed, archived, and tagged
+milestone: v2.0
+milestone_name: opencode + Ollama
+status: active
+stopped_at: ""
+last_updated: "2026-03-10T00:00:00Z"
+last_activity: 2026-03-10 -- Milestone v2.0 started
 progress:
-  total_phases: 4
-  completed_phases: 4
-  total_plans: 15
-  completed_plans: 15
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-03-09)
+See: .planning/PROJECT.md (updated 2026-03-10)
 
 **Core value:** Run skill evaluations entirely offline using local LLMs -- no API keys, no cloud costs, no network dependency.
-**Current focus:** v1.0 shipped. Planning next milestone.
+**Current focus:** v2.0 -- opencode CLI + Ollama agent backend
 
 ## Current Position
 
-Milestone v1.0 shipped: 4 phases, 15 plans, 18 requirements satisfied.
-Next: /gsd:new-milestone for v2.0 (agent CLI backends).
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-03-10 — Milestone v2.0 started
 
 ## Accumulated Context
 
@@ -44,6 +46,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-09
-Stopped at: v1.0 milestone completed and archived
+Last session: 2026-03-10
+Stopped at: Milestone v2.0 initialization
 Resume file: None

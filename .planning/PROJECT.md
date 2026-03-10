@@ -8,6 +8,16 @@ A local-LLM fork of [mgechev/skill-eval](https://github.com/mgechev/skill-eval) 
 
 Run skill evaluations entirely offline using local LLMs -- no API keys, no cloud costs, no network dependency.
 
+## Current Milestone: v2.0 opencode + Ollama
+
+**Goal:** Run skill evaluations using opencode CLI backed by Ollama, proving local-only agent evaluation end-to-end.
+
+**Target features:**
+- opencode CLI configured with Ollama backend for agent evaluation
+- superlint_demo task completes end-to-end within 15 minutes per trial
+- Works both locally and in CI (ubuntu-24.04-arm)
+- Fallback: direct Ollama with tool use if opencode+Ollama proves unworkable
+
 ## Current State
 
 Shipped v1.0 with 4,527 LOC across TypeScript, shell, and YAML.
@@ -22,7 +32,7 @@ Shipped v1.0 with 4,527 LOC across TypeScript, shell, and YAML.
 - Warmup eliminates cold-start timeout waste in CI
 
 **Known limitations:**
-- Agent CLI backends (opencode, Claude Code) not yet implemented (v2)
+- Agent CLI backends (opencode, Claude Code) not yet implemented
 - Ollama env var tuning requires manual configuration outside CI
 
 ## Requirements
@@ -59,13 +69,16 @@ Shipped v1.0 with 4,527 LOC across TypeScript, shell, and YAML.
 
 ### Active
 
-- [ ] Local LLM backend for opencode agent CLI
-- [ ] Local LLM backend for Claude Code agent CLI
-- [ ] `ollama launch [opencode|claude]` command matching for agent CLI configuration
+- [ ] opencode CLI configured with Ollama as LLM backend
+- [ ] Ollama model identified that works with opencode for agent tasks
+- [ ] superlint_demo eval completes end-to-end with opencode+Ollama (local and CI)
+- [ ] Per-trial completion within 15 minutes on target hardware
+- [ ] Fallback: direct Ollama with tool use if opencode path unworkable for agent CLI configuration
 
 ### Out of Scope
 
 - Cloud LLM grading enhancements -- we're moving away from cloud, not improving it
+- Claude Code agent CLI backend -- deferred until opencode path proven
 - New agent CLI integrations beyond opencode and Claude Code -- focus on two first
 - GPU-accelerated inference -- hardware has poor GPU support; CPU/NPU only
 - Training or fine-tuning models -- we consume pre-trained models only
@@ -112,4 +125,4 @@ Shipped v1.0 with 4,527 LOC across TypeScript, shell, and YAML.
 | Composite actions for CI setup | Reusable across ci.yml and skill-eval.yml workflows | Good -- setup-node and setup-ollama used by all 5 CI jobs |
 
 ---
-*Last updated: 2026-03-09 after v1.0 milestone*
+*Last updated: 2026-03-10 after v2.0 milestone start*
