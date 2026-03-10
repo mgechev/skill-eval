@@ -59,12 +59,14 @@ Plans:
 
 **Goal:** Research and apply model/Ollama parameters and prompt engineering to get superlint_demo under 5 min average across 3 trial runs. Explore alternative models (qwen2.5:7b, other 4/7/8b models).
 
-**Requirements:** TBD
+**Requirements:** TUNE-BASELINE, TUNE-PARAMS, TUNE-PROMPT, TUNE-AGENTCFG, TUNE-PRUNING, TUNE-ALTMODELS, TUNE-QUANTIZATION
 **Depends on:** Phase 4
-**Plans:** 0 plans
+**Plans:** 3 plans
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 4.1 to break down)
+- [ ] 04.1-01-PLAN.md -- Benchmark tooling and baseline capture
+- [ ] 04.1-02-PLAN.md -- Systematic qwen3:4b parameter and prompt experiments
+- [ ] 04.1-03-PLAN.md -- Escalation: context pruning and alternative models
 
 ---
 
@@ -133,7 +135,7 @@ Plans:
 | 2.1. Optimize Grader Model Selection | v1.0 | 4/4 | Complete | 2026-03-09 |
 | 3. CI Evaluation Pipeline | v1.0 | 2/2 | Complete | 2026-03-09 |
 | 4. OllamaToolAgent + Ollama Model Setup | v2.0 | 3/3 | Complete | 2026-03-10 |
-| 4.1. Tune Ollama Agent to 5 Min Trial Average | v2.0 | 0/? | Not planned | -- |
+| 4.1. Tune Ollama Agent to 5 Min Trial Average | v2.0 | 0/3 | Planned | -- |
 | 5. OpenCodeAgent | v2.0 | 0/? | Pending | -- |
 | 6. CI Integration | v2.0 | 0/? | Pending | -- |
 | 7. End-to-End Validation + Comparison | v2.0 | 0/? | Pending | -- |
