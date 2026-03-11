@@ -24,6 +24,7 @@ Full details: milestones/v1.0-ROADMAP.md
 - [x] Phase 4: OllamaToolAgent + Ollama Model Setup
 - [x] Phase 4.1: Tune Ollama Agent to 5 Min Trial Average
 - [~] Phase 5: OpenCodeAgent (Plan 03 blocked -- model can't drive multi-step workflow)
+- [ ] Phase 5.1: Tune OpenCodeAgent for Multi-Step Tool Execution (INSERTED)
 - [ ] Phase 6: CI Integration
 - [ ] Phase 7: End-to-End Validation + Performance Comparison
 
@@ -97,15 +98,32 @@ Plans:
 
 ---
 
-### Phase 05.1: Tune OpenCodeAgent for Multi-Step Tool Execution (INSERTED)
+#### Phase 5.1: Tune OpenCodeAgent for Multi-Step Tool Execution (INSERTED)
 
-**Goal:** [Urgent work - to be planned]
-**Requirements**: TBD
+**Goal:** Make a small local LLM reliably drive opencode's multi-step agent workflow for the superlint_demo task. Achieve reward >= 0.85 from the deterministic grader with both local and Docker providers.
+
+**Requirements:** AGENT-03, AGENT-04
 **Depends on:** Phase 5
-**Plans:** 0 plans
+**Plans:** 3 plans
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 05.1 to break down)
+- [ ] 05.1-01-PLAN.md -- Config foundation: Qwen3 switch, tool denial, prompt prefix, screening trials
+- [ ] 05.1-02-PLAN.md -- Systematic Qwen3 experiment matrix on local provider
+- [ ] 05.1-03-PLAN.md -- Docker provider validation and user approval
+
+**Delivers:**
+- Qwen3-family Modelfiles replacing broken Qwen 3.5 (Ollama issues #14493, #14745)
+- Aggressive tool denial config (10 -> 5 visible tools)
+- Research-informed prompt prefix for multi-step reinforcement
+- Structured experiment data for every configuration tested
+- Winning model+config achieving reward >= 0.85 on both providers
+
+**Key risks:**
+- Qwen3:4b may lack tool-calling ability (Docker benchmark only tested 8B)
+- 8B models hog CPU on ARM64 -- needs careful thread management (num_thread 6)
+- Docker SIGABRT issue #13367 may block Docker validation
+
+---
 
 #### Phase 6: CI Integration
 
@@ -154,6 +172,7 @@ Plans:
 | 4. OllamaToolAgent + Ollama Model Setup | v2.0 | 3/3 | Complete | 2026-03-10 |
 | 4.1. Tune Ollama Agent to 5 Min Trial Average | v2.0 | 3/3 | Complete | 2026-03-11 |
 | 5. OpenCodeAgent | v2.0 | 2/3 | Blocked (Plan 03) | -- |
+| 5.1. Tune OpenCodeAgent for Multi-Step Tool Execution | v2.0 | 0/3 | Planned | -- |
 | 6. CI Integration | v2.0 | 0/? | Pending | -- |
 | 7. End-to-End Validation + Comparison | v2.0 | 0/? | Pending | -- |
 
