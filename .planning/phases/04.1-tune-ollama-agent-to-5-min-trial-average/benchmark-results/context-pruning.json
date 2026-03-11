@@ -1,0 +1,31 @@
+{
+  "name": "context-pruning",
+  "timestamp": "2026-03-11T09:24:29.081Z",
+  "modelfile": null,
+  "trials": [
+    {
+      "trial": 1,
+      "duration_s": 225.2,
+      "reward": 1,
+      "commands": 4
+    },
+    {
+      "trial": 2,
+      "duration_s": 233.3,
+      "reward": 1,
+      "commands": 4
+    },
+    {
+      "trial": 3,
+      "duration_s": 295.4,
+      "reward": 0.97,
+      "commands": 5
+    }
+  ],
+  "avg_duration_s": 251.3,
+  "std_dev_s": 38.4,
+  "avg_reward": 0.99,
+  "avg_commands": 4.3,
+  "target_met": true,
+  "reward_met": true
+}

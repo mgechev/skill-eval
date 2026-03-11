@@ -35,6 +35,39 @@ const SYSTEM_PROMPT =
     'When you are done, respond with a summary of what you did. /no_think';
 
 /**
+ * Prune conversation history to reduce prompt eval time on later turns.
+ * Keeps: system prompt, original instruction, and the last N turn groups.
+ * Replaces middle messages with a short summary marker.
+ */
+function pruneHistory(
+    messages: Array<{ role: string; content: string; tool_calls?: any[] }>,
+    keepLastNTurns: number = 3
+): Array<{ role: string; content: string; tool_calls?: any[] }> {
+    // A "turn" = assistant message + its tool result messages (~3 messages per turn)
+    // Always keep messages[0] (system) and messages[1] (user instruction)
+
+    if (messages.length <= 2 + keepLastNTurns * 3) {
+        return messages; // Not enough to prune
+    }
+
+    const system = messages[0];
+    const instruction = messages[1];
+    const prunableCount = messages.length - 2 - keepLastNTurns * 3;
+
+    if (prunableCount <= 0) {
+        return messages;
+    }
+
+    const summary = {
+        role: 'user' as const,
+        content: `[${prunableCount} earlier messages pruned -- agent was executing tool calls]`,
+    };
+    const recent = messages.slice(messages.length - keepLastNTurns * 3);
+
+    return [system, instruction, summary, ...recent];
+}
+
+/**
  * OllamaToolAgent -- an agent that uses the Ollama chat API with structured tool calling.
  *
  * The agent loop sends messages to an Ollama model, executes any tool calls the model
@@ -79,9 +112,10 @@ export class OllamaToolAgent extends BaseAgent {
 
         try {
             for (let i = 0; i < this.config.maxIterations; i++) {
+                const prunedMessages = pruneHistory(messages, 3);
                 const response = await this.client.chat({
                     model: this.config.model,
-                    messages: messages as any,
+                    messages: prunedMessages as any,
                     tools: AGENT_TOOLS,
                     stream: false,
                     think: false,
