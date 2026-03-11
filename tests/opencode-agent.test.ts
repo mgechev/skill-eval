@@ -54,8 +54,8 @@ assert(
 
 // Test 7: Config has correct model (opencode variant without custom system prompt)
 assert(
-    config?.model === 'ollama/qwen2.5-3b-opencode-agent',
-    '7. Config has correct model (ollama/qwen2.5-3b-opencode-agent)'
+    config?.model === 'ollama/qwen3.5-4b-opencode-agent',
+    '7. Config has correct model (ollama/qwen3.5-4b-opencode-agent)'
 );
 
 // Test 8: Config permissions all explicit (no "ask" defaults)
@@ -68,7 +68,7 @@ assert(allExplicit, '8. Config permissions all explicit (allow or deny, no ask)'
 
 // Test 9: Config has tools: true for the model
 assert(
-    config?.provider?.ollama?.models?.['qwen2.5-3b-opencode-agent']?.tools === true,
+    config?.provider?.ollama?.models?.['qwen3.5-4b-opencode-agent']?.tools === true,
     '9. Config has tools: true for the model'
 );
 

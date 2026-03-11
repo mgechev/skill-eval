@@ -1,0 +1,15 @@
+# Modelfile for the opencode agent variant of qwen3.5:4b.
+#
+# Qwen 3.5 has significantly better tool-calling capabilities than Qwen 2.5,
+# which is critical for opencode's OpenAI-compatible tool protocol that exposes
+# 10+ tools. Qwen 2.5 (3B and 7B) both failed to format tool calls correctly.
+# NO custom SYSTEM prompt -- opencode provides its own.
+#
+# To create: ollama create qwen3.5-4b-opencode-agent -f qwen3.5-4b-opencode-agent.Modelfile
+
+FROM qwen3.5:4b
+PARAMETER num_predict 4096
+PARAMETER num_thread 8
+PARAMETER temperature 0
+PARAMETER num_batch 1024
+PARAMETER num_ctx 4096

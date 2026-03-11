@@ -4,13 +4,14 @@ import * as path from 'path';
 import * as fs from 'fs';
 
 /**
- * Model name used by opencode. This is a separate Modelfile variant from the
- * OllamaToolAgent's model: same base weights (qwen2.5:3b) and parameters
- * (num_ctx 4096, temperature 0, num_batch 1024) but NO custom system prompt.
- * Opencode provides its own system prompt and tool definitions via the
- * OpenAI-compatible API, so the Modelfile must not override them.
+ * Model name used by opencode. Uses qwen3.5:4b because opencode's tool-calling
+ * protocol (OpenAI-compatible /v1 API with 10+ tools) requires strong structured
+ * tool call formatting. Qwen 2.5 (3B and 7B) both failed -- 3B invoked wrong
+ * tools with malformed args, 7B produced zero tool calls. Qwen 3.5 has
+ * significantly better tool-calling training data.
+ * NO custom system prompt -- opencode provides its own via the OpenAI-compatible API.
  */
-const OPENCODE_MODEL = 'qwen2.5-3b-opencode-agent';
+const OPENCODE_MODEL = 'qwen3.5-4b-opencode-agent';
 
 /**
  * OpenCodeAgent -- wraps the `opencode run` CLI with config injection,
@@ -22,11 +23,10 @@ const OPENCODE_MODEL = 'qwen2.5-3b-opencode-agent';
  * 2. Git init: opencode uses git root detection for project config lookup
  * 3. Model unload: calls keep_alive: 0 in finally block after run completes
  *
- * Uses the base qwen2.5:3b model (not the custom Modelfile variant) because
- * opencode provides its own system prompt and tool definitions via the
- * OpenAI-compatible API. The custom Modelfile's system prompt conflicts with
- * opencode's internal prompting, causing the model to produce incompatible
- * tool call formats.
+ * Uses qwen3.5:4b because Qwen 2.5 (both 3B and 7B) failed to handle
+ * opencode's 10+ tool definitions via the OpenAI-compatible API. Qwen 3.5
+ * has significantly better tool-calling training data. NO custom system
+ * prompt -- opencode provides its own.
  *
  * Timeout protection is provided by the evalRunner's withTimeout wrapper.
  * The bash `timeout` command was removed because it causes SIGSEGV when
@@ -96,7 +96,17 @@ export class OpenCodeAgent extends BaseAgent {
         console.log(`[OpenCodeAgent] Using model: ${OPENCODE_MODEL}`);
 
         // 4. Write instruction to temp file (established base64 pattern)
-        const b64 = Buffer.from(instruction).toString('base64');
+        //    Prefix with a directive to use bash tools — small models try to
+        //    invoke opencode's "Skill" system instead of running bash commands.
+        const prefixedInstruction = [
+            'IMPORTANT: You MUST use the Bash tool to run ALL shell commands described below.',
+            'Do NOT stop after the first command. Execute EVERY command in order.',
+            'Do NOT summarize results between commands. Just run the next command immediately.',
+            'Do NOT use Skills or any feature other than Bash, Read, and Edit.',
+            '/no_think\n',
+            instruction,
+        ].join('\n');
+        const b64 = Buffer.from(prefixedInstruction).toString('base64');
         await runCommand(`echo '${b64}' | base64 -d > /tmp/.prompt.md`);
 
         try {

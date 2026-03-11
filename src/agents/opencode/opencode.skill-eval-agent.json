@@ -8,14 +8,14 @@
         "baseURL": "http://localhost:11434/v1"
       },
       "models": {
-        "qwen2.5-3b-opencode-agent": {
-          "name": "Qwen 2.5 3B OpenCode Agent",
+        "qwen3.5-4b-opencode-agent": {
+          "name": "Qwen 3.5 4B OpenCode Agent",
           "tools": true
         }
       }
     }
   },
-  "model": "ollama/qwen2.5-3b-opencode-agent",
+  "model": "ollama/qwen3.5-4b-opencode-agent",
   "permission": {
     "read": "allow",
     "edit": "allow",

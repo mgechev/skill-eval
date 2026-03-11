@@ -1,0 +1,14 @@
+# Modelfile for the opencode agent variant of qwen2.5:7b.
+#
+# Same structure as the 3b variant but using qwen2.5:7b base.
+# 7B model handles opencode's tool-calling format correctly where 3B fails.
+# NO custom SYSTEM prompt -- opencode provides its own.
+#
+# To create: ollama create qwen2.5-7b-opencode-agent -f qwen2.5-7b-opencode-agent.Modelfile
+
+FROM qwen2.5:7b
+PARAMETER num_predict 4096
+PARAMETER num_thread 8
+PARAMETER temperature 0
+PARAMETER num_batch 1024
+PARAMETER num_ctx 4096
