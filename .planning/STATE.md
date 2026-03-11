@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: opencode + Ollama Agent Backends
 status: executing
-stopped_at: Completed 04.1-01-PLAN.md
-last_updated: "2026-03-11T00:30:00Z"
-last_activity: 2026-03-11 -- Baseline benchmark captured (qwen3.5:4b avg 235s, target met)
+stopped_at: Completed 04.1-02-PLAN.md, user chose escalate to Plan 03
+last_updated: "2026-03-11T14:00:00Z"
+last_activity: 2026-03-11 -- Parameter tuning complete, num_batch 1024 applied, escalating to Plan 03
 progress:
   total_phases: 5
   completed_phases: 1
@@ -25,9 +25,9 @@ See: .planning/PROJECT.md (updated 2026-03-10)
 ## Current Position
 
 Phase: Phase 4.1 (Tune Ollama Agent to 5 Min Trial Average)
-Plan: 1 of 3 complete
-Status: Plan 01 (benchmark tooling + baseline) complete, plans 02-03 remaining
-Last activity: 2026-03-11 -- Baseline benchmark captured (qwen3.5:4b avg 235s, target met)
+Plan: 2 of 3 complete
+Status: Plans 01-02 complete, Plan 03 (context pruning + alternative models) remaining
+Last activity: 2026-03-11 -- Parameter tuning complete, num_batch 1024 applied, escalating to Plan 03
 
 ## Accumulated Context
 
@@ -49,6 +49,10 @@ Decisions logged in PROJECT.md Key Decisions table. v1.0 decisions archived to m
 - [Phase 04.1]: qwen3.5:4b already meets 300s target (235s avg) -- remaining plans focus on further optimization
 - [Phase 04.1]: Benchmark runner uses per-trial execSync calls to avoid timeout on multi-trial runs
 - [Phase 04.1]: Prompt eval is 70% of Ollama time -- primary optimization target
+- [Phase 04.1]: num_batch 1024 is the only Modelfile param that consistently improves performance (-8.3%)
+- [Phase 04.1]: temperature 0 critical for consistency; 0.25 causes wild command count variance
+- [Phase 04.1]: Flash attention + q8_0 KV cache provide no benefit on ARM64 CPU-only
+- [Phase 04.1]: Path variance (4 vs 6 commands) dominates duration more than any parameter
 
 ### Pending Todos
 
@@ -67,9 +71,10 @@ None.
 | Phase | Plan | Duration | Tasks | Files |
 |-------|------|----------|-------|-------|
 | 04.1 | 01 | 57min | 2 | 9 |
+| 04.1 | 02 | ~120min | 4 | 8 |
 
 ## Session Continuity
 
 Last session: 2026-03-11T00:30:00Z
-Stopped at: Completed 04.1-01-PLAN.md
-Resume file: .planning/phases/04.1-tune-ollama-agent-to-5-min-trial-average/04.1-01-SUMMARY.md
+Stopped at: Completed 04.1-02-PLAN.md, user chose escalate to Plan 03
+Resume file: .planning/phases/04.1-tune-ollama-agent-to-5-min-trial-average/04.1-02-SUMMARY.md
