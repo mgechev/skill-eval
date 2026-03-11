@@ -22,7 +22,7 @@ Full details: milestones/v1.0-ROADMAP.md
 ### v2.0: opencode + Ollama Agent Backends
 
 - [x] Phase 4: OllamaToolAgent + Ollama Model Setup
-- [ ] Phase 4.1: Tune Ollama Agent to 5 Min Trial Average
+- [x] Phase 4.1: Tune Ollama Agent to 5 Min Trial Average
 - [ ] Phase 5: OpenCodeAgent
 - [ ] Phase 6: CI Integration
 - [ ] Phase 7: End-to-End Validation + Performance Comparison
@@ -65,8 +65,8 @@ Plans:
 
 Plans:
 - [x] 04.1-01-PLAN.md -- Benchmark tooling and baseline capture
-- [ ] 04.1-02-PLAN.md -- Systematic qwen3:4b parameter and prompt experiments
-- [ ] 04.1-03-PLAN.md -- Escalation: context pruning and alternative models
+- [x] 04.1-02-PLAN.md -- Systematic qwen3:4b parameter and prompt experiments
+- [x] 04.1-03-PLAN.md -- Escalation: context pruning and alternative models
 
 ---
 
@@ -135,7 +135,13 @@ Plans:
 | 2.1. Optimize Grader Model Selection | v1.0 | 4/4 | Complete | 2026-03-09 |
 | 3. CI Evaluation Pipeline | v1.0 | 2/2 | Complete | 2026-03-09 |
 | 4. OllamaToolAgent + Ollama Model Setup | v2.0 | 3/3 | Complete | 2026-03-10 |
-| 4.1. Tune Ollama Agent to 5 Min Trial Average | v2.0 | 1/3 | In Progress | -- |
+| 4.1. Tune Ollama Agent to 5 Min Trial Average | v2.0 | 3/3 | Complete | 2026-03-11 |
 | 5. OpenCodeAgent | v2.0 | 0/? | Pending | -- |
 | 6. CI Integration | v2.0 | 0/? | Pending | -- |
 | 7. End-to-End Validation + Comparison | v2.0 | 0/? | Pending | -- |
+
+## Deferred
+
+Items to consider for future milestones:
+
+- **Evaluate qwen3.5 as LLM grader model** -- Current grader uses qwen2.5:3b (non-thinking). A thinking model may grade more accurately. Tradeoff: slower grading (CoT overhead) vs potential accuracy gain. Triggered if inconsistent grading results are observed.

@@ -1,0 +1,31 @@
+{
+  "name": "test-no-think",
+  "timestamp": "2026-03-11T11:38:05.576Z",
+  "modelfile": null,
+  "trials": [
+    {
+      "trial": 1,
+      "duration_s": 53.4,
+      "reward": 1,
+      "commands": 3
+    },
+    {
+      "trial": 2,
+      "duration_s": 52.9,
+      "reward": 1,
+      "commands": 3
+    },
+    {
+      "trial": 3,
+      "duration_s": 53.4,
+      "reward": 1,
+      "commands": 3
+    }
+  ],
+  "avg_duration_s": 53.2,
+  "std_dev_s": 0.3,
+  "avg_reward": 1,
+  "avg_commands": 3,
+  "target_met": true,
+  "reward_met": true
+}
