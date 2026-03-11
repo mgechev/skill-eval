@@ -1,0 +1,31 @@
+{
+  "name": "structured-prompt",
+  "timestamp": "2026-03-11T01:38:05.954Z",
+  "modelfile": null,
+  "trials": [
+    {
+      "trial": 1,
+      "duration_s": 246.1,
+      "reward": 0.97,
+      "commands": 4
+    },
+    {
+      "trial": 2,
+      "duration_s": 233.9,
+      "reward": 0.97,
+      "commands": 4
+    },
+    {
+      "trial": 3,
+      "duration_s": 225.5,
+      "reward": 0.97,
+      "commands": 4
+    }
+  ],
+  "avg_duration_s": 235.2,
+  "std_dev_s": 10.4,
+  "avg_reward": 0.97,
+  "avg_commands": 4,
+  "target_met": true,
+  "reward_met": true
+}

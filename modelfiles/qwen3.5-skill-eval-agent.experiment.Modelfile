@@ -1,0 +1,6 @@
+FROM qwen3.5:4b
+PARAMETER num_ctx 4096
+PARAMETER num_predict 4096
+PARAMETER temperature 0
+PARAMETER num_batch 1024
+PARAMETER num_thread 8

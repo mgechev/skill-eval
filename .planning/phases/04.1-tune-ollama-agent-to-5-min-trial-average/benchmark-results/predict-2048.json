@@ -1,0 +1,31 @@
+{
+  "name": "predict-2048",
+  "timestamp": "2026-03-11T02:00:54.818Z",
+  "modelfile": "modelfiles/qwen3.5-skill-eval-agent.experiment.Modelfile",
+  "trials": [
+    {
+      "trial": 1,
+      "duration_s": 324.5,
+      "reward": 0.97,
+      "commands": 5
+    },
+    {
+      "trial": 2,
+      "duration_s": 262.7,
+      "reward": 0.97,
+      "commands": 4
+    },
+    {
+      "trial": 3,
+      "duration_s": 324,
+      "reward": 0.97,
+      "commands": 5
+    }
+  ],
+  "avg_duration_s": 303.7,
+  "std_dev_s": 35.5,
+  "avg_reward": 0.97,
+  "avg_commands": 4.7,
+  "target_met": false,
+  "reward_met": true
+}

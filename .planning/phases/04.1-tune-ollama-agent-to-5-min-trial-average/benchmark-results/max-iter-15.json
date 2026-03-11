@@ -1,0 +1,31 @@
+{
+  "name": "max-iter-15",
+  "timestamp": "2026-03-11T02:24:07.013Z",
+  "modelfile": null,
+  "trials": [
+    {
+      "trial": 1,
+      "duration_s": 362,
+      "reward": 0.97,
+      "commands": 6
+    },
+    {
+      "trial": 2,
+      "duration_s": 300,
+      "reward": 1,
+      "commands": 5
+    },
+    {
+      "trial": 3,
+      "duration_s": 278,
+      "reward": 0.97,
+      "commands": 4
+    }
+  ],
+  "avg_duration_s": 313.3,
+  "std_dev_s": 43.6,
+  "avg_reward": 0.98,
+  "avg_commands": 5,
+  "target_met": false,
+  "reward_met": true
+}

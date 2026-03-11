@@ -1,0 +1,31 @@
+{
+  "name": "tool-output-4000",
+  "timestamp": "2026-03-11T02:59:03.246Z",
+  "modelfile": null,
+  "trials": [
+    {
+      "trial": 1,
+      "duration_s": 290.6,
+      "reward": 0.97,
+      "commands": 5
+    },
+    {
+      "trial": 2,
+      "duration_s": 240.5,
+      "reward": 1,
+      "commands": 4
+    },
+    {
+      "trial": 3,
+      "duration_s": 291,
+      "reward": 0.97,
+      "commands": 5
+    }
+  ],
+  "avg_duration_s": 274,
+  "std_dev_s": 29,
+  "avg_reward": 0.98,
+  "avg_commands": 4.7,
+  "target_met": true,
+  "reward_met": true
+}

@@ -1,0 +1,31 @@
+{
+  "name": "batch-1024",
+  "timestamp": "2026-03-11T02:40:09.684Z",
+  "modelfile": "modelfiles/qwen3.5-skill-eval-agent.experiment.Modelfile",
+  "trials": [
+    {
+      "trial": 1,
+      "duration_s": 224.9,
+      "reward": 0.97,
+      "commands": 4
+    },
+    {
+      "trial": 2,
+      "duration_s": 212.8,
+      "reward": 1,
+      "commands": 4
+    },
+    {
+      "trial": 3,
+      "duration_s": 209.2,
+      "reward": 1,
+      "commands": 4
+    }
+  ],
+  "avg_duration_s": 215.6,
+  "std_dev_s": 8.2,
+  "avg_reward": 0.99,
+  "avg_commands": 4,
+  "target_met": true,
+  "reward_met": true
+}
