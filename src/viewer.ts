@@ -15,6 +15,11 @@ async function main() {
     const url = new URL(req.url || '/', `http://localhost:${PORT}`);
 
     if (url.pathname === '/api/reports') {
+      if (!await fs.pathExists(resolvedDir)) {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify([]));
+        return;
+      }
       const files = (await fs.readdir(resolvedDir)).filter(f => f.endsWith('.json')).reverse();
       const reports = [];
       for (const file of files) {

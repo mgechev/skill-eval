@@ -240,6 +240,9 @@ pre.code-block {
   line-height: 1.5; max-height: 350px; overflow-y: auto;
   border: 1px solid var(--border);
 }
+pre.inline {
+  display: inline-block;
+}
 
 .cmd-line { font-family: var(--mono); color: var(--green); font-weight: 500; font-size: 0.85rem; }
 .cmd-line::before { content: '$ '; color: var(--text-muted); }
@@ -304,7 +307,15 @@ async function renderList() {
   reports = await res.json();
 
   if (!reports.length) {
-    $('content').innerHTML = '<div class="empty"><div class="empty-icon">📭</div><div>No reports found. Run an eval first.</div></div>';
+    $('content').innerHTML = `
+      <div class="empty">
+        <div class="empty-icon">📭</div>
+          <div>
+            <p>No reports found. Run an eval first.</p>
+            <pre class="inline code-block">npm run eval &lt;task_name&gt;</pre>  
+          </div>
+      </div>
+      `;
     return;
   }
 
@@ -312,11 +323,12 @@ async function renderList() {
     const pr = (r.pass_rate * 100).toFixed(0);
     const isPass = r.pass_rate >= 0.5;
     const ts = r.file.match(/\d{4}-\d{2}-\d{2}T[\d-]+/)?.[0]?.replace(/-(?=\d{2}(?:Z|$))/g, ':') || '';
+    const displayTS = formatFilenameDate(r.file);
 
     return `<a class="report-row" onclick="navigate('detail','${esc(r.file)}')" href="javascript:void(0)">
       <div>
         <div class="report-task">${esc(r.task)}</div>
-        <div class="report-file">${ts}</div>
+        <div class="report-file">${displayTS} | ${ts}</div>
       </div>
       <div class="report-metric"><div class="val">${pr}%</div><div class="lbl">Pass Rate</div></div>
       <div class="report-metric"><div class="val">${r.trials?.length || 0}</div><div class="lbl">Trials</div></div>
@@ -335,6 +347,29 @@ async function loadDetail(file) {
   const res = await fetch('/api/report?file=' + encodeURIComponent(file));
   const report = await res.json();
   renderDetail(report, file);
+}
+
+function formatFilenameDate(filename) {
+  // 1. Extract the timestamp part: 2026-03-10T18-58-37-783Z
+  // We look for 4 digits, a dash, and then everything until the ".json"
+  const match = filename.match(/(\d{4}-\d{2}-\d{2}T[\d-]+Z?)(?=\.json)/);
+  
+  if (!match) return "Invalid Filename";
+
+  const rawTs = match[0];
+
+  // 2. Convert 18-58-37-783 into 18:58:37.783
+  const isoTs = rawTs
+    .replace(/T(\d{2})-(\d{2})-(\d{2})/, "T$1:$2:$3")
+    .replace(/-(\d{3})/, ".$1");
+
+  // 3. Create Date object and format for humans
+  const dateObj = new Date(isoTs);
+
+  return dateObj.toLocaleString('en-US', {
+    dateStyle: 'medium', 
+    timeStyle: 'medium'
+  });
 }
 
 function renderDetail(r, file) {
