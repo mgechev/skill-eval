@@ -103,6 +103,7 @@ export class OpenCodeAgent extends BaseAgent {
         const prefixedInstruction = [
             'CRITICAL: Execute ALL commands below in order. After each command completes, immediately run the next one. Do NOT stop, summarize, or explain between commands.',
             'You have 4 tools: Bash, Read, Edit, Write. Use Bash for ALL shell commands.',
+            'IMPORTANT: When calling bash, you MUST provide both "command" and "description" fields. Example: {"command": "ls -la", "description": "List files in workspace"}',
             'After the last command, respond with a one-line summary.',
             '/no_think\n',
             instruction,
@@ -120,7 +121,7 @@ export class OpenCodeAgent extends BaseAgent {
             let lastResult: CommandResult | null = null;
 
             for (let attempt = 1; attempt <= maxRetries; attempt++) {
-                const result = await runCommand(`opencode run "$(cat /tmp/.prompt.md)" < /tmp/.prompt.md`);
+                const result = await runCommand(`OPENCODE_DISABLE_CLAUDE_CODE_PROMPT=1 OPENCODE_DISABLE_PROJECT_CONFIG=1 OPENCODE_DISABLE_EXTERNAL_SKILLS=1 opencode run "$(cat /tmp/.prompt.md)" < /tmp/.prompt.md`);
                 lastResult = result;
 
                 if (result.exitCode === 139) {
