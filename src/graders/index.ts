@@ -14,9 +14,14 @@ export interface Grader {
 }
 
 /**
- * Runs a shell command and scores based on exit code.
- * Supports partial credit: the command can write a float (0.0–1.0) to
- * logs/verifier/reward.txt, or the grader defaults to binary 0/1 based on exit code.
+ * Runs a command and parses structured JSON from stdout.
+ *
+ * The grader script MUST output JSON to stdout:
+ *   { "score": 0.0-1.0, "details": "...", "checks": [...] }
+ *
+ * - score: float between 0.0 and 1.0
+ * - details: human-readable summary
+ * - checks: optional array of { name, passed, message } for per-check breakdown
  */
 export class DeterministicGrader implements Grader {
     async grade(
@@ -30,23 +35,45 @@ export class DeterministicGrader implements Grader {
         const command = config.command || 'bash tests/test.sh';
         const result = await provider.runCommand(workspace, command, env);
 
-        // Check for a reward file with a float score
-        const rewardCheck = await provider.runCommand(workspace, 'cat logs/verifier/reward.txt', env);
-        let score = result.exitCode === 0 ? 1.0 : 0.0;
-
-        if (rewardCheck.exitCode === 0) {
-            const parsed = parseFloat(rewardCheck.stdout.trim());
-            if (!isNaN(parsed)) {
-                score = Math.max(0, Math.min(1, parsed));  // clamp to 0–1
-            }
+        // Parse JSON from stdout
+        const jsonMatch = result.stdout.match(/\{[\s\S]*\}/);
+        if (!jsonMatch) {
+            return {
+                grader_type: 'deterministic',
+                score: 0,
+                weight: config.weight,
+                details: `Grader did not output JSON. stdout: ${result.stdout.trim() || '(empty)'} stderr: ${result.stderr.trim() || '(empty)'}`
+            };
         }
 
-        return {
-            grader_type: 'deterministic',
-            score,
-            weight: config.weight,
-            details: result.stdout.trim() || result.stderr.trim() || (score > 0 ? 'Passed' : 'Failed')
-        };
+        try {
+            const parsed = JSON.parse(jsonMatch[0]);
+            const score = Math.max(0, Math.min(1, parseFloat(parsed.score) || 0));
+            const details = parsed.details || `score=${score.toFixed(2)}`;
+            const checks = parsed.checks || [];
+
+            // Build rich details string with per-check breakdown
+            const checkLines = checks.map((c: any) =>
+                `  ${c.passed ? '✓' : '✗'} ${c.name}: ${c.message || ''}`
+            );
+            const fullDetails = checkLines.length > 0
+                ? `${details}\n${checkLines.join('\n')}`
+                : details;
+
+            return {
+                grader_type: 'deterministic',
+                score,
+                weight: config.weight,
+                details: fullDetails
+            };
+        } catch (e) {
+            return {
+                grader_type: 'deterministic',
+                score: 0,
+                weight: config.weight,
+                details: `Failed to parse grader JSON: ${jsonMatch[0].substring(0, 200)}`
+            };
+        }
     }
 }
 

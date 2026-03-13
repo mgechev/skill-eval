@@ -5,7 +5,7 @@ import { EnvironmentProvider, CommandResult, TaskConfig } from '../types';
 
 export class LocalProvider implements EnvironmentProvider {
     async setup(taskPath: string, skillsPaths: string[], _taskConfig: TaskConfig, env?: Record<string, string>): Promise<string> {
-        const tempDir = path.join('/tmp', `skill-eval-${Math.random().toString(36).substring(7)}`);
+        const tempDir = path.join('/tmp', `skilleval-${Math.random().toString(36).substring(7)}`);
         await fs.ensureDir(tempDir);
         await fs.copy(taskPath, tempDir);
 

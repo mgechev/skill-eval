@@ -1,0 +1,61 @@
+# This is a generated eval.yaml template.
+# Edit the tasks below to define evaluations for your skill.
+#
+# Usage:
+#   skilleval          Run all tasks
+#   skilleval --validate   Verify graders using reference solutions
+#   skilleval --preview    Open web UI for results
+#
+# Documentation: https://github.com/nickcmiller/skilleval#readme
+
+version: "1"
+
+defaults:
+  agent: gemini          # gemini | claude
+  provider: docker       # docker | local (use local for quick iteration)
+  trials: 5              # number of independent runs per task
+  timeout: 300           # seconds before agent is killed
+  threshold: 0.8         # minimum pass rate for --ci mode
+  docker:
+    base: node:20-slim   # base Docker image
+    # setup: |            # extra setup commands (uncomment if needed)
+    #   apt-get update && apt-get install -y <packages>
+
+tasks:
+  - name: {{TASK_NAME}}
+    instruction: |
+      {{INSTRUCTION}}
+
+    workspace:
+      # Files to copy into the agent's workspace before it starts.
+      # - src: fixtures/broken-file.js
+      #   dest: app.js
+      # - src: bin/my-tool
+      #   dest: /usr/local/bin/my-tool
+      #   chmod: "+x"
+
+    graders:
+      - type: deterministic
+        # setup: npm install typescript  # install grader dependencies (optional)
+        run: |
+          # Grader must output JSON: { "score": 0.0-1.0, "details": "...", "checks": [...] }
+          # Example:
+          # if test -f expected-output.txt; then
+          #   echo '{"score": 1.0, "details": "All checks passed", "checks": [{"name": "file-exists", "passed": true, "message": "Found expected output"}]}'
+          # else
+          #   echo '{"score": 0.0, "details": "Check failed", "checks": [{"name": "file-exists", "passed": false, "message": "Missing expected output"}]}'
+          # fi
+          echo '{"score": 0.0, "details": "TODO: implement grader"}'
+        weight: 0.7
+
+      - type: llm_rubric
+        rubric: |
+          # TODO: Write a rubric for the LLM grader.
+          # Example:
+          # - Did the agent follow the correct workflow?
+          # - Did it use the appropriate tool?
+          # - Was it efficient (minimal commands)?
+        weight: 0.3
+
+    # Optional: reference solution for --validate
+    # solution: solutions/solve.sh

@@ -1,0 +1,18 @@
+# Source files (dist/ has compiled output)
+src/
+tests/
+examples/
+assets/
+
+# Config and dev files
+tsconfig.json
+tsconfig.build.json
+.env
+.env.*
+
+# IDE and OS
+.vscode/
+.idea/
+.DS_Store
+*.swp
+

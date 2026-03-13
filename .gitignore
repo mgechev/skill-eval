@@ -11,24 +11,16 @@ dist/
 !jest.config.js
 !*.ts
 
-# Benchmarking Outputs & Reports
-results/
-logs/
-test_logs/
-secret_logs/
+# Results and logs
 *.json
 !package.json
 !tsconfig.json
-!task.toml
+logs/
 
 # Environment and Secrets
 .env
 .env.*
 .DS_Store
-
-# Benchmarking temporary artifacts
-/tmp/skill-bench-*
-.superlint-passed
 
 # IDEs
 .vscode/
