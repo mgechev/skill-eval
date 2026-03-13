@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: opencode + Ollama Agent Backends
-status: Phase 5.1 gap closure complete. All 5 plans done, all UAT gaps closed.
-stopped_at: Phase 5.1 fully closed (gap closure done), ready for Phase 6
-last_updated: "2026-03-13T18:00:00.000Z"
-last_activity: "2026-03-13 -- Phase 5.1 gap closure: model naming (04), LLM grader checklist scoring (05)"
+status: Phase 5.1 e2e validated. Grader timeout resolved, 5/5 trials reward 0.96. Ready for Phase 6.
+stopped_at: Phase 5.1 e2e validation complete, ready for Phase 6
+last_updated: "2026-03-13T22:00:00.000Z"
+last_activity: "2026-03-13 -- Phase 5.1 e2e validated: grader cache in evalRunner fixes timeout, 5/5 trials 0.96"
 progress:
   total_phases: 6
   completed_phases: 4
@@ -26,8 +26,8 @@ See: .planning/PROJECT.md (updated 2026-03-10)
 
 Phase: Phase 6 (CI Integration) -- ready to plan
 Plan: 0 -- not yet planned
-Status: Phase 5.1 fully closed (gap closure complete). Ready for Phase 6.
-Last activity: 2026-03-13 -- Phase 5.1 gap closure plans 04+05 executed (model naming, LLM grader fix)
+Status: Phase 5.1 e2e validated (5/5 trials reward 0.96). Ready for Phase 6.
+Last activity: 2026-03-13 -- Phase 5.1 e2e grader timeout resolved via grader cache in evalRunner
 
 ## Accumulated Context
 
@@ -66,6 +66,7 @@ Decisions logged in PROJECT.md Key Decisions table. v1.0 decisions archived to m
 - [Phase 05.1 gap]: LLM grader uses qwen3:4b with binary checklist decomposition (CheckEval/RocketEval) instead of holistic scoring
 - [Phase 05.1 gap]: Three scoring techniques: prerequisite gating (A), weighted scoring (C), score cap (D)
 - [Phase 05.1 gap]: think:false required for qwen3 grading -- thinking tokens break structured output
+- [Phase 05.1 e2e]: Grader cache in evalRunner (not singleton in getGrader) -- OCP-compliant for upstream fork
 
 ### Pending Todos
 
@@ -93,6 +94,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-13T18:00:00.000Z
-Stopped at: Phase 5.1 gap closure complete, proceeding to Phase 6
+Last session: 2026-03-13T22:00:00.000Z
+Stopped at: Phase 5.1 e2e validated, proceeding to Phase 6
 Resume file: none

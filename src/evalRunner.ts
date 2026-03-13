@@ -2,10 +2,10 @@ import * as fs from 'fs-extra';
 import * as path from 'path';
 import * as toml from 'toml';
 import {
-    BaseAgent, EnvironmentProvider, TaskConfig, GraderConfig,
+    BaseAgent, EnvironmentProvider, TaskConfig,
     LogEntry, TrialResult, EvalReport, GraderResult
 } from './types';
-import { getGrader } from './graders';
+import { Grader, getGrader } from './graders';
 
 export async function loadTaskConfig(taskPath: string): Promise<TaskConfig> {
     const configPath = path.join(taskPath, 'task.toml');
@@ -95,15 +95,26 @@ export class EvalRunner {
             await this.provider.prepare(taskPath, skillsPaths, taskConfig, env);
         }
 
+        // Cache grader instances across trials so stateful graders (e.g. LLMGrader
+        // with warmedUp flag) avoid redundant model loads that cause timeouts.
+        const graderCache = new Map<string, Grader>();
+
+        for (const gc of taskConfig.graders) {
+            if (!graderCache.has(gc.type)) {
+                graderCache.set(gc.type, getGrader(gc.type));
+            }
+        }
+
         let trials: TrialResult[];
 
         try {
             if (parallel > 1 && numTrials > 1) {
-                trials = await this.runTrialsParallel(agent, taskPath, taskConfig, skillsPaths, numTrials, parallel, env);
+                trials = await this.runTrialsParallel(agent, taskPath, taskConfig, skillsPaths, numTrials, parallel, env, graderCache);
             } else {
                 trials = [];
+
                 for (let i = 0; i < numTrials; i++) {
-                    const result = await this.runSingleTrial(agent, taskPath, taskConfig, skillsPaths, i, numTrials, env);
+                    const result = await this.runSingleTrial(agent, taskPath, taskConfig, skillsPaths, i, numTrials, env, graderCache);
                     trials.push(result);
                 }
             }
@@ -141,7 +152,8 @@ export class EvalRunner {
         skillsPaths: string[],
         numTrials: number,
         parallel: number,
-        env?: Record<string, string>
+        env?: Record<string, string>,
+        graderCache?: Map<string, Grader>
     ): Promise<TrialResult[]> {
         const results: TrialResult[] = new Array(numTrials);
         const queue = Array.from({ length: numTrials }, (_, i) => i);
@@ -149,7 +161,7 @@ export class EvalRunner {
         const workers = Array.from({ length: Math.min(parallel, numTrials) }, async () => {
             while (queue.length > 0) {
                 const i = queue.shift()!;
-                results[i] = await this.runSingleTrial(agent, taskPath, taskConfig, skillsPaths, i, numTrials, env);
+                results[i] = await this.runSingleTrial(agent, taskPath, taskConfig, skillsPaths, i, numTrials, env, graderCache);
             }
         });
 
@@ -164,7 +176,8 @@ export class EvalRunner {
         skillsPaths: string[],
         index: number,
         total: number,
-        env?: Record<string, string>
+        env?: Record<string, string>,
+        graderCache?: Map<string, Grader>
     ): Promise<TrialResult> {
         const sessionLog: LogEntry[] = [];
         let commandCount = 0;
@@ -214,7 +227,7 @@ export class EvalRunner {
             const graderResults: GraderResult[] = [];
 
             for (const graderConfig of taskConfig.graders) {
-                const grader = getGrader(graderConfig.type);
+                const grader = graderCache?.get(graderConfig.type) ?? getGrader(graderConfig.type);
                 const result = await grader.grade(workspace, this.provider, graderConfig, taskPath, sessionLog, env);
                 graderResults.push(result);
 
