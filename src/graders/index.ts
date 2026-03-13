@@ -96,7 +96,7 @@ export class LLMGrader implements Grader {
         }
 
         this.warmedUp = true;
-        const numCtx = parseInt(process.env.OLLAMA_GRADER_NUM_CTX || '2048', 10);
+        const numCtx = 2048;
         const start = Date.now();
         console.log(`[LLMGrader] Warming up ${model}...`);
 
@@ -289,7 +289,7 @@ Respond with ONLY a JSON object: {"score": <number>, "reasoning": "<brief explan
         // Benchmark-validated Ollama defaults (Phase 2.1, qwen2.5:3b benchmark results)
         // qwen2.5:3b: perfect discrimination (positive=1.0, empty=0.0, wrong=0.0),
         // ~4.6s median wall time, 100% JSON Schema validity across all profiles.
-        const OLLAMA_NUM_CTX = parseInt(process.env.OLLAMA_GRADER_NUM_CTX || '2048', 10);
+        const OLLAMA_NUM_CTX = 2048;
         const OLLAMA_NUM_PREDICT = 512;
         const OLLAMA_TIMEOUT_MS = 120_000;
 
