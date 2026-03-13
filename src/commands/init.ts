@@ -31,6 +31,27 @@ export async function runInit(dir: string) {
 
   console.log(`  Found ${skills.length} skill(s): ${skills.map(s => s.name).join(', ')}\n`);
 
+  // Load .env file if present
+  const envPath = path.join(dir, '.env');
+  if (await fs.pathExists(envPath)) {
+    const content = await fs.readFile(envPath, 'utf-8');
+    for (const line of content.split('\n')) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith('#')) continue;
+      const eqIdx = trimmed.indexOf('=');
+      if (eqIdx === -1) continue;
+      const key = trimmed.substring(0, eqIdx).trim();
+      let value = trimmed.substring(eqIdx + 1).trim();
+      if ((value.startsWith('"') && value.endsWith('"')) ||
+          (value.startsWith("'") && value.endsWith("'"))) {
+        value = value.slice(1, -1);
+      }
+      if (!process.env[key]) {
+        process.env[key] = value;
+      }
+    }
+  }
+
   // Try LLM-powered scaffold
   const apiKey = process.env.GEMINI_API_KEY;
   if (apiKey) {
