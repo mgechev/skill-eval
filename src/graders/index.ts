@@ -501,20 +501,20 @@ Respond with ONLY a JSON object: {"commands_found": ["cmd1", ...], "criteria": [
                         const section = sectionOf(criterion);
 
                         if (section) {
-                            return /workflow|compliance/i.test(section);
+                            return /workflow|compliance|procedure|protocol|pipeline|process.*step|step.*process/i.test(section);
                         }
 
-                        return /workflow|compliance|mandatory/i.test(criterion);
+                        return /workflow|compliance|mandatory|procedure|protocol|pipeline/i.test(criterion);
                     };
 
                     const isEfficiency = (criterion: string) => {
                         const section = sectionOf(criterion);
 
                         if (section) {
-                            return /efficien/i.test(section);
+                            return /efficien|overhead|resource.*usage/i.test(section);
                         }
 
-                        return /efficien|redundan|trial.and.error|reasonable.*command|unnecessary/i.test(criterion);
+                        return /efficien|redundan|trial.and.error|reasonable.*command|unnecessary|extraneous|superfluous|wasteful|excess/i.test(criterion);
                     };
 
                     // Technique A (prerequisite gating): If < 50% of workflow criteria are met,
@@ -540,7 +540,7 @@ Respond with ONLY a JSON object: {"commands_found": ["cmd1", ...], "criteria": [
                     // Ref: DeepEval DAG metric (conditional scoring via decision trees);
                     // Autorubric (arxiv:2603.00077) CANNOT_ASSESS for dependent criteria;
                     // Logical consistency survey (arxiv:2410.02205) transitivity dimension.
-                    const summaryPattern = /\b\d+-step\b|workflow|process|procedure/i;
+                    const summaryPattern = /\b\d+-step\b|workflow|process|procedure|pipeline|protocol|sequence|lifecycle/i;
 
                     for (const c of parsed.criteria) {
                         if (!c.met || !summaryPattern.test(c.criterion)) {
@@ -589,8 +589,10 @@ Respond with ONLY a JSON object: {"commands_found": ["cmd1", ...], "criteria": [
                     // Ref: RocketEval (ICLR 2025, arxiv:2503.05142) gate-criterion concept
                     // — their trained predictor learns gate weights; we use a hard cap since
                     // we lack annotated training data for learned reweighting.
+                    const workflowSynonyms = /workflow|process|procedure|protocol|pipeline/i;
                     const workflowFollowed = parsed.criteria.find(
-                        (c: any) => /mandatory.*workflow|follow.*workflow|step.*workflow/i.test(c.criterion)
+                        (c: any) => /mandatory|follow|required|prescribed|correct|proper/i.test(c.criterion)
+                            && workflowSynonyms.test(c.criterion)
                     );
 
                     if (workflowFollowed && !workflowFollowed.met) {

@@ -153,24 +153,25 @@ async function grade(v) {
       return '';
     };
 
+    // Must match parseResponse in src/graders/index.ts
     const isWorkflow = (criterion) => {
       const section = sectionOf(criterion);
 
       if (section) {
-        return /workflow|compliance/i.test(section);
+        return /workflow|compliance|procedure|protocol|pipeline|process.*step|step.*process/i.test(section);
       }
 
-      return /workflow|compliance|mandatory/i.test(criterion);
+      return /workflow|compliance|mandatory|procedure|protocol|pipeline/i.test(criterion);
     };
 
     const isEfficiency = (criterion) => {
       const section = sectionOf(criterion);
 
       if (section) {
-        return /efficien/i.test(section);
+        return /efficien|overhead|resource.*usage/i.test(section);
       }
 
-      return /efficien|redundan|trial.and.error|reasonable.*command|unnecessary/i.test(criterion);
+      return /efficien|redundan|trial.and.error|reasonable.*command|unnecessary|extraneous|superfluous|wasteful|excess/i.test(criterion);
     };
 
     // Technique A: Workflow gate for efficiency
@@ -184,7 +185,7 @@ async function grade(v) {
     }
 
     // Technique E: Intra-section entailment (must match parseResponse)
-    const summaryPattern = /\b\d+-step\b|workflow|process|procedure/i;
+    const summaryPattern = /\b\d+-step\b|workflow|process|procedure|pipeline|protocol|sequence|lifecycle/i;
     for (const c of parsed.criteria) {
       if (!c.met || !summaryPattern.test(c.criterion)) { continue; }
       const section = sectionOf(c.criterion);
@@ -205,7 +206,11 @@ async function grade(v) {
     score = weightedTotal > 0 ? weightedMet / weightedTotal : 0;
 
     // Technique D: Score cap if mandatory workflow not followed (must match parseResponse)
-    const workflowFollowed = parsed.criteria.find(c => /mandatory.*workflow|follow.*workflow|step.*workflow/i.test(c.criterion));
+    const workflowSynonyms = /workflow|process|procedure|protocol|pipeline/i;
+    const workflowFollowed = parsed.criteria.find(c =>
+      /mandatory|follow|required|prescribed|correct|proper/i.test(c.criterion)
+      && workflowSynonyms.test(c.criterion)
+    );
     if (workflowFollowed && !workflowFollowed.met) { score = Math.min(score, 0.4); }
   } else {
     score = parsed.score !== undefined ? parsed.score : -1;
