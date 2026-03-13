@@ -624,7 +624,7 @@ async function main() {
         assert(capturedBody.model === testModel, `model should be ${testModel}, got: ${capturedBody.model}`);
     });
 
-    await test('warmUp does NOT send request on second call (warmedUp flag prevents repeat)', async () => {
+    await test('warmUp does NOT send request on second call (module-level warmedModels prevents repeat)', async () => {
         let callCount = 0;
         const freshGrader = new LLMGrader();
         const testModel = 'test-warmup-repeat:4b';
