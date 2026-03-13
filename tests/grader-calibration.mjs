@@ -123,8 +123,9 @@ async function grade(v) {
   // Compute score using dimension-aware weighting (matches parseResponse logic)
   let score;
   if (Array.isArray(parsed.criteria) && parsed.criteria.length > 0) {
-    const isWorkflow = (text) => /workflow|check.*before|superlint (check|fix|verify)|3-step/i.test(text);
-    const isEfficiency = (text) => /efficien|redundan|trial.and.error|reasonable.*command/i.test(text);
+    // Must match parseResponse in src/graders/index.ts
+    const isWorkflow = (text) => /workflow|compliance|mandatory|step.*order|before.*attempt|follow.*step/i.test(text);
+    const isEfficiency = (text) => /efficien|redundan|trial.and.error|reasonable.*command|unnecessary/i.test(text);
 
     // Technique A: Workflow gate for efficiency
     const workflowCriteria = parsed.criteria.filter(c => isWorkflow(c.criterion));
@@ -145,8 +146,8 @@ async function grade(v) {
     }
     score = weightedTotal > 0 ? weightedMet / weightedTotal : 0;
 
-    // Technique D: Score cap if 3-step workflow not followed
-    const workflowFollowed = parsed.criteria.find(c => /3-step|mandatory.*workflow/i.test(c.criterion));
+    // Technique D: Score cap if mandatory workflow not followed (must match parseResponse)
+    const workflowFollowed = parsed.criteria.find(c => /mandatory.*workflow|follow.*workflow|step.*workflow/i.test(c.criterion));
     if (workflowFollowed && !workflowFollowed.met) { score = Math.min(score, 0.4); }
   } else {
     score = parsed.score !== undefined ? parsed.score : -1;

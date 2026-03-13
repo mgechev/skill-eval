@@ -449,20 +449,24 @@ Respond with ONLY a JSON object: {"commands_found": ["cmd1", ...], "criteria": [
                 const parsed = JSON.parse(jsonMatch[0]);
 
                 // Checklist scoring with dimension-aware weighting.
-                // Based on CheckEval (EMNLP 2025) and RocketEval (ICLR 2025) findings
-                // that binary checklist decomposition dramatically improves small-model
-                // judge reliability over holistic scoring.
+                // Based on CheckEval (EMNLP 2025, arxiv:2403.18771) and RocketEval
+                // (ICLR 2025, arxiv:2503.05142) findings that binary checklist
+                // decomposition dramatically improves small-model judge reliability
+                // over holistic scoring.
                 if (Array.isArray(parsed.criteria) && parsed.criteria.length > 0) {
                     // Classify criteria by rubric dimension using generic keyword patterns.
                     // "Workflow/compliance" = core task steps; "Efficiency" = resource usage.
+                    // These patterns are intentionally broad to work across different task
+                    // rubrics (any rubric with workflow/compliance and efficiency sections).
                     const isWorkflow = (text: string) =>
-                        /workflow|compliance|step|before.*fix|run.*check|run.*fix|run.*verify|mandatory/i.test(text);
+                        /workflow|compliance|mandatory|step.*order|before.*attempt|follow.*step/i.test(text);
                     const isEfficiency = (text: string) =>
                         /efficien|redundan|trial.and.error|reasonable.*command|unnecessary/i.test(text);
 
                     // Technique A (prerequisite gating): If < 50% of workflow criteria are met,
                     // efficiency criteria are vacuously true — override to false.
-                    // Ref: Autorubric (NAACL 2025) CANNOT_ASSESS strategy, simplified to binary gate.
+                    // Ref: Autorubric (NAACL 2025, arxiv:2603.00077) CANNOT_ASSESS strategy
+                    // with SKIP mode, simplified here to a binary gate.
                     const workflowCriteria = parsed.criteria.filter((c: any) => isWorkflow(c.criterion));
                     const workflowMet = workflowCriteria.filter((c: any) => c.met).length;
                     const workflowScore = workflowCriteria.length > 0 ? workflowMet / workflowCriteria.length : 0;
@@ -477,7 +481,10 @@ Respond with ONLY a JSON object: {"commands_found": ["cmd1", ...], "criteria": [
 
                     // Technique C (weighted scoring): Workflow criteria count 2x,
                     // reflecting rubric dimension weights (Workflow 0-0.4 vs others 0-0.3).
-                    // Ref: RocketEval (ICLR 2025) confidence-weighted normalized scoring.
+                    // Ref: RocketEval (ICLR 2025, arxiv:2503.05142) confidence-weighted
+                    // normalized scoring — adapted from continuous logprob weights to
+                    // discrete dimension weights since Ollama structured output doesn't
+                    // expose token logprobs.
                     let weightedMet = 0;
                     let weightedTotal = 0;
 
@@ -494,7 +501,9 @@ Respond with ONLY a JSON object: {"commands_found": ["cmd1", ...], "criteria": [
 
                     // Technique D (score cap): If the primary workflow criterion is false,
                     // cap score at 0.4 to prevent partial attempts from exceeding midpoint.
-                    // Ref: RocketEval gate-criterion concept.
+                    // Ref: RocketEval (ICLR 2025, arxiv:2503.05142) gate-criterion concept
+                    // — their trained predictor learns gate weights; we use a hard cap since
+                    // we lack annotated training data for learned reweighting.
                     const workflowFollowed = parsed.criteria.find(
                         (c: any) => /mandatory.*workflow|follow.*workflow|step.*workflow/i.test(c.criterion)
                     );
