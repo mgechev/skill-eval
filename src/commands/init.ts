@@ -57,15 +57,16 @@ export async function runInit(dir: string, opts: { force?: boolean } = {}) {
   const providerLabel: Record<string, string> = { gemini: 'Gemini', anthropic: 'Anthropic', openai: 'OpenAI' };
 
   if (llmProvider && llmApiKey) {
-    console.log(`  Generating eval tasks with ${providerLabel[llmProvider]}...\n`);
+    const { Spinner, fmt } = await import('../utils/cli');
+    const spinner = new Spinner('init', `generating eval with ${providerLabel[llmProvider]}`);
     try {
       const config = await generateWithLLM(skills, llmApiKey, llmProvider);
       await fs.writeFile(evalPath, config, 'utf-8');
-      console.log(`  Created eval.yaml with AI-generated tasks.`);
+      spinner.stop(fmt.green('created eval.yaml'));
       console.log(`     Review and edit the file, then run: skillgrade\n`);
       return;
     } catch (err: any) {
-      console.log(`  AI generation failed: ${err.message}`);
+      spinner.stop(fmt.red(`AI generation failed: ${err.message}`));
       console.log('     Falling back to template.\n');
     }
   } else {
