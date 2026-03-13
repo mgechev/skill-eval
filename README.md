@@ -18,7 +18,7 @@ npm i -g skillgrade
 
 ```bash
 cd my-skill/
-GEMINI_API_KEY=your-key skillgrade init    # or ANTHROPIC_API_KEY
+GEMINI_API_KEY=your-key skillgrade init    # or ANTHROPIC_API_KEY / OPENAI_API_KEY
 # Use --force to overwrite an existing eval.yaml
 ```
 
@@ -226,7 +226,7 @@ Exits with code 1 if pass rate falls below `--threshold` (default: 0.8).
 |----------|---------|
 | `GEMINI_API_KEY` | Agent execution, LLM grading, `skillgrade init` |
 | `ANTHROPIC_API_KEY` | Agent execution, LLM grading, `skillgrade init` |
-| `OPENAI_API_KEY` | Agent execution (Codex) |
+| `OPENAI_API_KEY` | Agent execution (Codex), `skillgrade init` |
 
 Variables are also loaded from `.env` in the skill directory. Shell values override `.env`. All values are **redacted** from persisted session logs.
 
