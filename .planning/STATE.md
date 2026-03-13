@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: opencode + Ollama Agent Backends
-status: Phase 5.1 complete. Both providers validated (Docker 0.98, Local 0.97 avg reward).
-stopped_at: Phase 5.1 closed, ready for Phase 6
-last_updated: "2026-03-12T22:30:00.000Z"
-last_activity: "2026-03-12 -- Phase 5.1 closed (qwen3:1.7b + prompt fix, both providers 3-trial validated)"
+status: Phase 5.1 gap closure complete. All 5 plans done, all UAT gaps closed.
+stopped_at: Phase 5.1 fully closed (gap closure done), ready for Phase 6
+last_updated: "2026-03-13T18:00:00.000Z"
+last_activity: "2026-03-13 -- Phase 5.1 gap closure: model naming (04), LLM grader checklist scoring (05)"
 progress:
   total_phases: 6
   completed_phases: 4
-  total_plans: 12
-  completed_plans: 12
+  total_plans: 14
+  completed_plans: 14
 ---
 
 # Project State
@@ -26,8 +26,8 @@ See: .planning/PROJECT.md (updated 2026-03-10)
 
 Phase: Phase 6 (CI Integration) -- ready to plan
 Plan: 0 -- not yet planned
-Status: Phase 5.1 complete. Ready for Phase 6.
-Last activity: 2026-03-12 -- Phase 5.1 closed (both providers validated, Plans 02/03 superseded)
+Status: Phase 5.1 fully closed (gap closure complete). Ready for Phase 6.
+Last activity: 2026-03-13 -- Phase 5.1 gap closure plans 04+05 executed (model naming, LLM grader fix)
 
 ## Accumulated Context
 
@@ -62,6 +62,10 @@ Decisions logged in PROJECT.md Key Decisions table. v1.0 decisions archived to m
 - [Phase 05]: @types/tree-kill not available on npm; tree-kill ships its own .d.ts types
 - [Phase 05]: Opencode smoke test uses Ollama client.list() instead of opencode --version since runCommand is unavailable at CLI setup time
 - [Phase 05]: Model unload pattern duplicated from ollama block rather than extracting shared function to minimize risk
+- [Phase 05.1 gap]: Model naming convention: {base}-skill-eval-{backend}-agent (e.g., qwen3-4b-skill-eval-opencode-agent)
+- [Phase 05.1 gap]: LLM grader uses qwen3:4b with binary checklist decomposition (CheckEval/RocketEval) instead of holistic scoring
+- [Phase 05.1 gap]: Three scoring techniques: prerequisite gating (A), weighted scoring (C), score cap (D)
+- [Phase 05.1 gap]: think:false required for qwen3 grading -- thinking tokens break structured output
 
 ### Pending Todos
 
@@ -89,6 +93,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-12T22:30:00.000Z
-Stopped at: Phase 5.1 closed, proceeding to Phase 6
+Last session: 2026-03-13T18:00:00.000Z
+Stopped at: Phase 5.1 gap closure complete, proceeding to Phase 6
 Resume file: none

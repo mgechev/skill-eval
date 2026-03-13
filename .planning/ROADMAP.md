@@ -24,7 +24,7 @@ Full details: milestones/v1.0-ROADMAP.md
 - [x] Phase 4: OllamaToolAgent + Ollama Model Setup
 - [x] Phase 4.1: Tune Ollama Agent to 5 Min Trial Average
 - [~] Phase 5: OpenCodeAgent (Plan 03 blocked -- model can't drive multi-step workflow)
-- [x] Phase 5.1: Tune OpenCodeAgent for Multi-Step Tool Execution (INSERTED)
+- [x] Phase 5.1: Tune OpenCodeAgent for Multi-Step Tool Execution (INSERTED) -- completed 2026-03-13
 - [ ] Phase 6: CI Integration
 - [ ] Phase 7: End-to-End Validation + Performance Comparison
 
@@ -110,8 +110,8 @@ Plans:
 - [x] 05.1-01-PLAN.md -- Config foundation, prompt prefix fix, dual-provider 3-trial validation
 - [x] 05.1-02-PLAN.md -- Superseded by 01 (local already validated)
 - [x] 05.1-03-PLAN.md -- Superseded by 01 (Docker already validated)
-- [ ] 05.1-04-PLAN.md -- Gap closure: model naming conventions and dead Modelfile cleanup
-- [ ] 05.1-05-PLAN.md -- Gap closure: document LLM grader partial-credit limitation
+- [x] 05.1-04-PLAN.md -- Gap closure: model naming conventions and dead Modelfile cleanup
+- [x] 05.1-05-PLAN.md -- Gap closure: fix LLM grader partial-credit calibration (checklist scoring)
 
 **Delivers:**
 - Qwen3-family Modelfiles replacing broken Qwen 3.5 (Ollama issues #14493, #14745)
@@ -184,7 +184,7 @@ Plans:
 | 4. OllamaToolAgent + Ollama Model Setup | v2.0 | 3/3 | Complete | 2026-03-10 |
 | 4.1. Tune Ollama Agent to 5 Min Trial Average | v2.0 | 3/3 | Complete | 2026-03-11 |
 | 5. OpenCodeAgent | v2.0 | 2/3 | Blocked (Plan 03) | -- |
-| 5.1. Tune OpenCodeAgent for Multi-Step Tool Execution | v2.0 | 3/5 | Gap closure | -- |
+| 5.1. Tune OpenCodeAgent for Multi-Step Tool Execution | v2.0 | 5/5 | Complete | 2026-03-13 |
 | 6. CI Integration | v2.0 | 0/? | Pending | -- |
 | 7. End-to-End Validation + Comparison | v2.0 | 0/? | Pending | -- |
 
@@ -192,4 +192,4 @@ Plans:
 
 Items to consider for future milestones:
 
-- **Evaluate qwen3.5 as LLM grader model** -- Current grader uses qwen2.5:3b (non-thinking). A thinking model may grade more accurately. Tradeoff: slower grading (CoT overhead) vs potential accuracy gain. Triggered if inconsistent grading results are observed.
+- **Evaluate qwen3.5 as LLM grader model** -- Grader now uses qwen3:4b with checklist scoring (Phase 5.1 gap closure). A larger thinking model may further improve the one remaining calibration miss (variant 10: manual edit). Low priority since deterministic grader (0.7 weight) catches the actual verification failure.
