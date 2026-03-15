@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: opencode + Ollama Agent Backends
-status: Plan 06-01 complete. setup-ollama extended with multi-model YAML input.
-stopped_at: Completed 06-01-PLAN.md
-last_updated: "2026-03-15T00:00:35.133Z"
-last_activity: 2026-03-15 -- Plan 06-01 multi-model setup-ollama and CI Modelfile
+status: Plan 06-02 complete. setup-opencode action created, Docker detection fixed.
+stopped_at: Completed 06-02-PLAN.md
+last_updated: "2026-03-15T00:05:17.831Z"
+last_activity: 2026-03-15 -- Plan 06-02 setup-opencode action and Docker detection fix
 progress:
   total_phases: 7
   completed_phases: 4
   total_plans: 17
-  completed_plans: 15
+  completed_plans: 16
 ---
 
 # Project State
@@ -24,10 +24,10 @@ See: .planning/PROJECT.md (updated 2026-03-10)
 
 ## Current Position
 
-Phase: Phase 6 (CI Integration) -- Plan 01 complete
-Plan: 1 of 3 complete
-Status: Plan 06-01 complete. setup-ollama extended with multi-model YAML input.
-Last activity: 2026-03-15 -- Plan 06-01 multi-model setup-ollama and CI Modelfile
+Phase: Phase 6 (CI Integration) -- Plan 02 complete
+Plan: 2 of 3 complete
+Status: Plan 06-02 complete. setup-opencode action created, Docker detection fixed for cgroup v2, SIGSEGV retry removed.
+Last activity: 2026-03-15 -- Plan 06-02 setup-opencode action and Docker detection fix
 
 ## Accumulated Context
 
@@ -69,6 +69,8 @@ Decisions logged in PROJECT.md Key Decisions table. v1.0 decisions archived to m
 - [Phase 05.1 e2e]: Grader cache in evalRunner (not singleton in getGrader) -- OCP-compliant for upstream fork
 - [Phase 06]: Kept benchmark-grader.yml using ai-action/setup-ollama@v2 directly due to multi-profile restart pattern
 - [Phase 06]: Used temp-file approach for YAML parsing to avoid subshell variable scoping in piped while-read
+- [Phase 06]: dockerenv-first detection order: /.dockerenv > cgroup v1 > workspace path (cgroup v2 safe)
+- [Phase 06]: Removed SIGSEGV retry loop -- ARM64 native binary eliminates x64 emulation crashes
 
 ### Pending Todos
 
@@ -94,9 +96,10 @@ None.
 | Phase 05 P01 | 2min | 2 tasks | 5 files |
 | 05 | 02 | 2min | 2 | 3 |
 | Phase 06 P01 | 2min | 2 tasks | 5 files |
+| Phase 06 P02 | 2min | 2 tasks | 2 files |
 
 ## Session Continuity
 
-Last session: 2026-03-15T00:00:35.131Z
-Stopped at: Completed 06-01-PLAN.md
+Last session: 2026-03-15T00:05:17.828Z
+Stopped at: Completed 06-02-PLAN.md
 Resume file: None

@@ -30,8 +30,8 @@ Requirements for v2.0 milestone. Each maps to roadmap phases.
 ### CI Integration
 
 - [x] **CI-01**: setup-ollama action pulls agent model and creates Modelfile variant
-- [ ] **CI-02**: setup-opencode composite action installs opencode and generates config for CI
-- [ ] **CI-03**: Agent eval workflow runs on CI (ARM64 with fix or x64 fallback)
+- [x] **CI-02**: setup-opencode composite action installs opencode and generates config for CI
+- [x] **CI-03**: Agent eval workflow runs on CI (ARM64 with fix or x64 fallback)
 - [x] **CI-04**: OLLAMA_MAX_LOADED_MODELS=1 set in CI to prevent OOM
 
 ### Performance Comparison
@@ -85,8 +85,8 @@ Tracked but not in current roadmap.
 | PIPE-03 | Phase 4 | Complete |
 | PIPE-04 | Phase 5 | Complete |
 | CI-01 | Phase 6 | Complete |
-| CI-02 | Phase 6 | Pending |
-| CI-03 | Phase 6 | Pending |
+| CI-02 | Phase 6 | Complete |
+| CI-03 | Phase 6 | Complete |
 | CI-04 | Phase 6 | Complete |
 | PERF-01 | Phase 7 | Pending |
 | PERF-02 | Phase 7 | Pending |
