@@ -33,8 +33,12 @@ description: Sets up and runs skillgrade evaluation pipelines for Agent Skills. 
    - `--reliable` (15 trials): Reliable pass rate estimate.
    - `--regression` (30 trials): High-confidence regression detection.
 2. Run the evaluation: `skillgrade --smoke`.
-3. The agent is auto-detected from the API key. Override with `--agent=gemini|claude|codex`.
-4. Override the provider with `--provider=docker|local`.
+3. Run a specific eval by name: `skillgrade --eval=fix-linting`.
+4. Run multiple evals: `skillgrade --eval=fix-linting,write-tests`.
+5. Run only deterministic graders (skip LLM calls): `skillgrade --grader=deterministic`.
+6. Run only LLM rubric graders: `skillgrade --grader=llm_rubric`.
+7. The agent is auto-detected from the API key. Override with `--agent=gemini|claude|codex`.
+8. Override the provider with `--provider=docker|local`.
 
 **Step 5: Review Results**
 1. Run `skillgrade preview` for a CLI report.
@@ -42,9 +46,10 @@ description: Sets up and runs skillgrade evaluation pipelines for Agent Skills. 
 3. Reports are saved to `$TMPDIR/skillgrade/<skill-name>/results/`. Override with `--output=DIR`.
 
 **Step 6: Integrate with CI**
-1. Add a GitHub Actions step that installs skillgrade, navigates to the skill directory, and runs with `--regression --ci`.
-2. The `--ci` flag causes a non-zero exit code if the pass rate falls below `--threshold` (default: 0.8).
-3. Read `references/ci-example.md` for a complete workflow template.
+1. Add a GitHub Actions step that installs skillgrade, navigates to the skill directory, and runs with `--regression --ci --provider=local`.
+2. Use `--provider=local` in CI — the runner is already an ephemeral sandbox, so Docker adds overhead without benefit.
+3. The `--ci` flag causes a non-zero exit code if the pass rate falls below `--threshold` (default: 0.8).
+4. Read `references/ci-example.md` for a complete workflow template.
 
 ## Error Handling
 * If `skillgrade init` fails with "No SKILL.md found," verify the current directory contains a valid `SKILL.md` file.

@@ -63,7 +63,10 @@ description: Authors deterministic and LLM rubric graders for skillgrade evaluat
 **Step 5: Validate Graders**
 1. Create a reference solution script that produces the expected output.
 2. Run `skillgrade --validate` to verify graders score the reference solution correctly.
-3. If a grader returns unexpected scores, inspect the script output and adjust scoring logic.
+3. Test only deterministic graders: `skillgrade --grader=deterministic` (skips LLM calls, faster iteration).
+4. Test only LLM rubric graders: `skillgrade --grader=llm_rubric`.
+5. Run a specific eval with a specific grader type: `skillgrade --eval=my-eval --grader=deterministic`.
+6. If a grader returns unexpected scores, inspect the script output and adjust scoring logic.
 
 ## Error Handling
 * If a deterministic grader outputs non-JSON, ensure all `echo`/`console.log` statements except the final JSON result are redirected to stderr.

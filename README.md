@@ -55,6 +55,8 @@ Reports are saved to `$TMPDIR/skillgrade/<skill-name>/results/`. Override with `
 
 | Flag | Description |
 |------|-------------|
+| `--eval=NAME[,NAME]` | Run specific evals by name (comma-separated) |
+| `--grader=TYPE` | Run only graders of a type (`deterministic` or `llm_rubric`) |
 | `--trials=N` | Override trial count |
 | `--parallel=N` | Run trials concurrently |
 | `--agent=gemini\|claude\|codex` | Override agent (default: auto-detect from API key) |

@@ -7,7 +7,7 @@
  *   skillgrade                     Run all eval tasks from eval.yaml
  *   skillgrade init                Generate eval.yaml from detected skills
  *   skillgrade preview [browser]   View results (CLI default, or browser)
- *   skillgrade <task-name>         Run a specific task
+ *   skillgrade <task-name>         Run a specific eval
  *
  * Options:
  *   --trials=N         Override trial count
@@ -21,6 +21,7 @@
 import { runInit } from './commands/init';
 import { runEvals } from './commands/run';
 import { runPreview } from './commands/preview';
+import { fmt } from './utils/cli';
 import * as os from 'os';
 import * as path from 'path';
 
@@ -76,10 +77,21 @@ async function main() {
 
     const explicitTrials = getFlag('trials') ? parseInt(getFlag('trials')!) : undefined;
 
+    // Resolve eval filter: --eval flag, deprecated --task flag, or positional arg
+    let evalFilter: string | undefined;
+    if (getFlag('eval')) {
+        evalFilter = getFlag('eval');
+    } else if (getFlag('task')) {
+        console.log(`  ${fmt.dim('note:')} --task is deprecated, use --eval instead\n`);
+        evalFilter = getFlag('task');
+    } else if (taskName) {
+        evalFilter = taskName;
+    }
+
     const outputDir = getFlag('output') || path.join(os.tmpdir(), 'skillgrade');
 
     await runEvals(cwd, {
-        task: taskName,
+        eval: evalFilter,
         trials: explicitTrials ?? presetTrials,
         parallel: getFlag('parallel') ? parseInt(getFlag('parallel')!) : undefined,
         validate: hasFlag('validate'),
@@ -88,6 +100,7 @@ async function main() {
         preset,
         agent: getFlag('agent'),
         provider: getFlag('provider'),
+        grader: getFlag('grader'),
         output: outputDir,
     });
 
@@ -98,13 +111,13 @@ async function main() {
 
 function printHelp() {
     console.log(`
-  📊 skillgrade — Evaluation framework for Agent Skills
+  skillgrade - The easiest way to evaluate your Agent Skills
 
   Usage:
-    skillgrade                     Run all tasks from eval.yaml
+    skillgrade                     Run all evals from eval.yaml
     skillgrade init [--force]      Generate eval.yaml (--force to overwrite)
     skillgrade preview [browser]   View results (CLI default, or browser)
-    skillgrade <task-name>         Run a specific task
+    skillgrade <eval-name>         Run a specific eval
 
   Presets:
     --smoke            Quick smoke test (5 trials, reports pass@k)
@@ -112,6 +125,8 @@ function printHelp() {
     --regression       High-confidence regression (30 trials, reports pass^k)
 
   Options:
+    --eval=NAME[,NAME] Run specific evals by name (comma-separated)
+    --grader=TYPE      Run only graders of this type (deterministic|llm_rubric)
     --trials=N         Override trial count (overrides preset)
     --parallel=N       Run trials concurrently
     --agent=gemini|claude|codex   Override agent (default: auto-detect from API key)
@@ -128,6 +143,8 @@ function printHelp() {
     skillgrade init --force        # overwrite existing eval.yaml
     skillgrade                     # run all evals
     skillgrade --smoke             # quick 5-trial smoke test
+    skillgrade --eval=fix-linting  # run a specific eval
+    skillgrade --eval=foo,bar      # run multiple evals
     skillgrade --regression --ci   # CI regression with 30 trials
     skillgrade preview browser     # open web UI
 `);

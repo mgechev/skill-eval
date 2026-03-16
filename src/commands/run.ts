@@ -18,7 +18,7 @@ import { parseEnvFile } from '../utils/env';
 import { fmt, header, kv, trialRow, resultsSummary, validationResult } from '../utils/cli';
 
 interface RunOptions {
-    task?: string;       // run specific task by name
+    eval?: string;       // run specific eval(s) by name (comma-separated)
     trials?: number;     // override trial count
     parallel?: number;
     validate?: boolean;
@@ -28,6 +28,7 @@ interface RunOptions {
     agent?: string;      // override agent (gemini|claude)
     provider?: string;   // override provider (docker|local)
     output?: string;     // output directory for reports and temp files
+    grader?: string;     // filter graders by type (deterministic|llm_rubric)
 }
 
 async function loadEnvFile(filePath: string): Promise<Record<string, string>> {
@@ -76,14 +77,15 @@ export async function runEvals(dir: string, opts: RunOptions) {
         }
     }
 
-    // Filter tasks
+    // Filter evals
     let tasksToRun = config.tasks;
-    if (opts.task) {
-        tasksToRun = config.tasks.filter(t => t.name === opts.task);
+    if (opts.eval) {
+        const evalNames = opts.eval.split(',').map(s => s.trim());
+        tasksToRun = config.tasks.filter(t => evalNames.includes(t.name));
         if (tasksToRun.length === 0) {
-            console.error(`  ${fmt.red('error')}  task "${opts.task}" not found`);
+            console.error(`  ${fmt.red('error')}  eval "${opts.eval}" not found`);
             console.log(`  ${fmt.dim('available:')} ${config.tasks.map(t => t.name).join(', ')}`);
-            throw new Error(`Task "${opts.task}" not found`);
+            throw new Error(`Eval "${opts.eval}" not found`);
         }
     }
 
@@ -112,7 +114,9 @@ export async function runEvals(dir: string, opts: RunOptions) {
         // Build eval options — pass resolved content directly
         const evalOpts: EvalRunOptions = {
             instruction: resolved.instruction,
-            graders: resolved.graders,
+            graders: opts.grader
+                ? resolved.graders.filter(g => g.type === opts.grader)
+                : resolved.graders,
             timeoutSec: resolved.timeout,
             graderModel: resolved.grader_model,
             environment: resolved.environment,
