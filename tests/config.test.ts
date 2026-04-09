@@ -227,6 +227,32 @@ tasks:
     const config = await loadEvalConfig('/test');
     expect(config.tasks[0].graders[0].weight).toBe(1.0);
   });
+
+  it('parses env variables correctly', async () => {
+    mockPathExists.mockResolvedValue(true as any);
+    const yaml = `version: "1"
+defaults:
+  env:
+    GLOBAL_VAR: "global"
+tasks:
+  - name: test-task
+    instruction: "do it"
+    env:
+      TASK_VAR: "task"
+    trialConfig:
+      env:
+        TRIAL_VAR: "trial"
+    graders:
+      - type: deterministic
+        run: "echo ok"
+`;
+    mockReadFile.mockResolvedValue(yaml as any);
+
+    const config = await loadEvalConfig('/test');
+    expect(config.defaults.env).toEqual({ GLOBAL_VAR: 'global' });
+    expect(config.tasks[0].env).toEqual({ TASK_VAR: 'task' });
+    expect(config.tasks[0].trialConfig?.env).toEqual({ TRIAL_VAR: 'trial' });
+  });
 });
 
 describe('resolveTask', () => {
@@ -370,5 +396,31 @@ describe('resolveTask', () => {
 
     const resolved = await resolveTask(task, defaults, '/base');
     expect(resolved.graders[0].setup).toBe('npm install -g typescript');
+  });
+
+  it('merges env variables correctly', async () => {
+    const defaultsWithEnv = {
+      ...defaults,
+      env: { GLOBAL_VAR: 'global', OVERRIDDEN: 'global' },
+    };
+    const task: EvalTaskConfig = {
+      name: 'test-task',
+      instruction: 'do it',
+      env: { TASK_VAR: 'task', OVERRIDDEN: 'task' },
+      trialConfig: {
+        env: { TRIAL_VAR: 'trial' },
+      },
+      graders: [{ type: 'deterministic', run: 'echo ok', weight: 1.0 }],
+    };
+
+    mockPathExists.mockResolvedValue(false as any);
+
+    const resolved = await resolveTask(task, defaultsWithEnv, '/base');
+    expect(resolved.env).toEqual({
+      GLOBAL_VAR: 'global',
+      TASK_VAR: 'task',
+      OVERRIDDEN: 'task',
+    });
+    expect(resolved.trialConfig?.env).toEqual({ TRIAL_VAR: 'trial' });
   });
 });

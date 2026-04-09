@@ -35,11 +35,13 @@ export interface DockerConfig {
 export interface EnvironmentConfig {
     cpus: number;
     memory_mb: number;
+    binds?: string[];
 }
 
 export interface TrialConfig {
     setup?: string;
     cleanup?: string;
+    env?: Record<string, string>;
 }
 
 /** Single eval task */
@@ -50,6 +52,7 @@ export interface EvalTaskConfig {
     graders: EvalGraderConfig[];
     solution?: string;      // path to reference solution script
     trialConfig?: TrialConfig;
+    env?: Record<string, string>;
 
     // Per-task overrides
     agent?: string;
@@ -71,6 +74,7 @@ export interface EvalDefaults {
     grader_model?: string;  // default LLM grader model
     docker: DockerConfig;
     environment: EnvironmentConfig;
+    env?: Record<string, string>;
 }
 
 /** Top-level eval.yaml */
@@ -96,6 +100,7 @@ export interface ResolvedTask {
     grader_model?: string;  // inherited default model for LLM graders
     docker: DockerConfig;
     environment: EnvironmentConfig;
+    env?: Record<string, string>;
 }
 
 export interface ResolvedGrader {

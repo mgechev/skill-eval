@@ -247,13 +247,54 @@ Exits with code 1 if pass rate falls below `--threshold` (default: 0.8).
 
 ## Environment Variables
 
+### Core Variables
+
 | Variable | Used by |
 |----------|---------|
 | `GEMINI_API_KEY` | Agent execution, LLM grading, `skillgrade init` |
 | `ANTHROPIC_API_KEY` | Agent execution, LLM grading, `skillgrade init` |
 | `OPENAI_API_KEY` | Agent execution (Codex), `skillgrade init` |
 
-Variables are also loaded from `.env` in the skill directory. Shell values override `.env`. All values are **redacted** from persisted session logs.
+### Configuration and Precedence
+
+You can define custom environment variables at multiple levels to customize the execution environment for your tasks.
+
+#### Supported Locations
+
+- **`defaults` in `eval.yaml`**: Sets environment variables for all tasks in the file.
+- **`tasks` in `eval.yaml`**: Sets environment variables for a specific task, overriding defaults.
+- **`trialConfig` in `eval.yaml`**: Sets environment variables for a specific trial, overriding task and default settings.
+- **`.env` file**: Located in the skill directory. These are loaded as base environment variables.
+
+#### Precedence Order
+
+Variables are merged in the following order (highest priority wins):
+
+1. **Trial Level**: `trialConfig.env` in `eval.yaml`
+2. **Task Level**: `env` in `eval.yaml` task definition
+3. **Defaults Level**: `defaults.env` in `eval.yaml`
+4. **`.env` File**: Variables defined in `.env` file.
+5. **System Environment**: Variables set in your shell. (Note: Only specific API keys like `GEMINI_API_KEY` are automatically passed through to the execution environment by default, unless using the `local` provider where all system variables are visible).
+
+#### Example
+
+```yaml
+defaults:
+  env:
+    GLOBAL_VAR: "global_value"
+
+tasks:
+  - name: test-task
+    env:
+      TASK_VAR: "task_value"
+      GLOBAL_VAR: "overridden_by_task"
+    trialConfig:
+      env:
+        TRIAL_VAR: "trial_value"
+        TASK_VAR: "overridden_by_trial"
+```
+
+All environment variables (including those from `.env` and `eval.yaml`) are **redacted** from persisted session logs by default.
 
 ## Best Practices
 

@@ -105,6 +105,10 @@ export async function runEvals(dir: string, opts: RunOptions) {
     // Run each task
     for (const taskDef of tasksToRun) {
         const resolved = await resolveTask(taskDef, config.defaults, dir);
+        const mergedEnv = {
+            ...env,
+            ...resolved.env,
+        };
         const trials = opts.trials ?? resolved.trials;
         const parallel = opts.parallel ?? 1;
 
@@ -124,6 +128,7 @@ export async function runEvals(dir: string, opts: RunOptions) {
             trialConfig: {
                 setup: resolved.trialConfig?.setup ? 'bash scripts/trial_setup.sh' : undefined,
                 cleanup: resolved.trialConfig?.cleanup ? 'bash scripts/trial_cleanup.sh' : undefined,
+                env: resolved.trialConfig?.env,
             },
         };
 
@@ -166,7 +171,7 @@ export async function runEvals(dir: string, opts: RunOptions) {
                 }
             } as BaseAgent;
 
-            const report = await runner.runEval(solveAgent, tmpTaskDir, skillsPaths, evalOpts, 1, env);
+            const report = await runner.runEval(solveAgent, tmpTaskDir, skillsPaths, evalOpts, 1, mergedEnv);
             const passed = report.trials[0].reward >= 0.5;
 
             validationResult(passed, report.trials[0].reward, report.trials[0].grader_results.map(gr => ({
@@ -185,7 +190,7 @@ export async function runEvals(dir: string, opts: RunOptions) {
             console.log();
 
             try {
-                const report = await runner.runEval(agent, tmpTaskDir, skillsPaths, evalOpts, trials, env, parallel);
+                const report = await runner.runEval(agent, tmpTaskDir, skillsPaths, evalOpts, trials, mergedEnv, parallel);
                 reports.push(report);
 
                 // LLM grader reasoning (condensed)

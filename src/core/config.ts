@@ -74,6 +74,7 @@ function validateConfig(raw: any): EvalConfig {
             ...DEFAULT_CONFIG.environment,
             ...(raw.defaults?.environment || {}),
         },
+        env: raw.defaults?.env,
     };
 
     if (!raw.tasks || !Array.isArray(raw.tasks) || raw.tasks.length === 0) {
@@ -132,6 +133,7 @@ function validateConfig(raw: any): EvalConfig {
             timeout: t.timeout,
             docker: t.docker,
             trialConfig: t.trialConfig,
+            env: t.env,
         };
     });
 
@@ -160,6 +162,10 @@ export async function resolveTask(
         ...(task.environment || {}),
     };
     const grader_model = task.grader_model || defaults.grader_model;
+    const env = {
+        ...defaults.env,
+        ...task.env,
+    };
 
     // Resolve instruction — could be inline text or file path
     const instruction = await resolveFileOrInline(task.instruction, baseDir);
@@ -202,9 +208,11 @@ export async function resolveTask(
         grader_model,
         docker,
         environment,
+        env,
         trialConfig: task.trialConfig ? {
             setup: task.trialConfig.setup ? await resolveFileOrInline(task.trialConfig.setup, baseDir) : undefined,
             cleanup: task.trialConfig.cleanup ? await resolveFileOrInline(task.trialConfig.cleanup, baseDir) : undefined,
+            env: task.trialConfig.env,
         } : undefined,
     };
 }

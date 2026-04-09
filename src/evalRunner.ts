@@ -172,6 +172,11 @@ export class EvalRunner {
         const sessionLog: LogEntry[] = [];
         let commandCount = 0;
         const startTime = Date.now();
+        
+        const trialEnv = {
+            ...env,
+            ...opts.trialConfig?.env,
+        };
 
         const spinner = new Spinner(`${index + 1}/${total}`, 'setting up environment');
         let workspace: string | undefined;
@@ -180,7 +185,7 @@ export class EvalRunner {
             workspace = await this.provider.setup(taskPath, skillsPaths, {
                 timeoutSec: opts.timeoutSec,
                 environment: opts.environment
-            }, env);
+            }, trialEnv);
             const instruction = opts.instruction;
 
             sessionLog.push({
@@ -191,7 +196,7 @@ export class EvalRunner {
 
             if (opts.trialConfig?.setup) {
                 spinner.update('running trial setup');
-                const res = await this.provider.runCommand(workspace, opts.trialConfig.setup, env);
+                const res = await this.provider.runCommand(workspace, opts.trialConfig.setup, trialEnv);
                 sessionLog.push({
                     type: 'trial_setup',
                     timestamp: this.timestamp(),
@@ -207,7 +212,7 @@ export class EvalRunner {
 
             spinner.update('running agent');
             const loggedRunCommand = async (cmd: string) => {
-                const result = await this.provider.runCommand(workspace!, cmd, env);
+                const result = await this.provider.runCommand(workspace!, cmd, trialEnv);
                 commandCount++;
                 sessionLog.push({
                     type: 'command',
@@ -261,7 +266,7 @@ export class EvalRunner {
 
                 const graderTimeoutMs = (opts.graderTimeoutSec ?? 120) * 1000;
                 const result = await withTimeout(
-                    grader.grade(workspace, this.provider, graderConfig, taskPath, sessionLog, env),
+                    grader.grade(workspace, this.provider, graderConfig, taskPath, sessionLog, trialEnv),
                     graderTimeoutMs,
                     `Grader ${graderDef.type} (limit: ${opts.graderTimeoutSec ?? 120}s)`
                 );
@@ -345,7 +350,7 @@ export class EvalRunner {
                 if (opts.trialConfig?.cleanup) {
                     const cleanupSpinner = new Spinner(`${index + 1}/${total}`, 'cleaning up trial');
                     try {
-                        const result = await this.provider.runCommand(workspace, opts.trialConfig.cleanup, env);
+                        const result = await this.provider.runCommand(workspace, opts.trialConfig.cleanup, trialEnv);
                         cleanupSpinner.stop(fmt.pass('cleaned up'));
                         sessionLog.push({
                             type: 'trial_cleanup',
