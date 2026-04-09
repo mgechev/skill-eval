@@ -1,6 +1,7 @@
 import { GraderConfig, GraderResult, EnvironmentProvider } from '../types';
 import * as fs from 'fs-extra';
 import * as path from 'path';
+import { ToolUsageGrader } from './tool_usage';
 
 export interface Grader {
     grade(
@@ -255,6 +256,7 @@ export function getGrader(type: string): Grader {
     switch (type) {
         case 'deterministic': return new DeterministicGrader();
         case 'llm_rubric': return new LLMGrader();
+        case 'tool_usage': return new ToolUsageGrader();
         default: throw new Error(`Unknown grader type: ${type}`);
     }
 }

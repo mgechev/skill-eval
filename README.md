@@ -199,6 +199,22 @@ Evaluates the agent's session transcript against qualitative criteria:
 
 Uses Gemini or Anthropic based on available API key. Override with the `model` field.
 
+### Tool Usage
+
+Verifies that the agent called specific tools during the trial, optionally validating arguments:
+
+```yaml
+- type: tool_usage
+  expectedTools:
+    - name: read_file # Arguments are optional
+    - name: write_to_file
+      args:
+        path: test.txt # Verifies arguments too
+  weight: 0.5
+```
+
+This grader parses the execution logs to check if the specified tools were invoked. It is useful for enforcing specific workflows or ensuring the agent uses required skills. Argument validation performs a subset match, ensuring the expected arguments are present in the actual call.
+
 ### Combining Graders
 
 ```yaml

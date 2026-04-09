@@ -4,11 +4,17 @@ export interface CommandResult {
     exitCode: number;
 }
 
+export interface ExpectedTool {
+    name: string;
+    args?: Record<string, any>;
+}
+
 export interface GraderConfig {
-    type: 'deterministic' | 'llm_rubric';
+    type: 'deterministic' | 'llm_rubric' | 'tool_usage';
     command?: string;         // for deterministic: shell command to execute (e.g. 'bash tests/test.sh')
     rubric?: string;          // for llm_rubric: file path to rubric (e.g. 'prompts/quality.md')
     model?: string;           // for llm_rubric: LLM model override
+    expectedTools?: ExpectedTool[];  // for tool_usage: list of expected tool calls
     weight: number;
 }
 

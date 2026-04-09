@@ -240,6 +240,7 @@ export class EvalRunner {
                 const graderDef = opts.graders[gIdx];
                 const grader = getGrader(graderDef.type);
                 spinner.update(`grading (${graderDef.type}${opts.graders.length > 1 ? ` ${gIdx + 1}/${opts.graders.length}` : ''})`);
+                spinner.render();
 
                 // Build grader config with file references for execution
                 const detIndex = opts.graders.slice(0, gIdx).filter(g => g.type === 'deterministic').length;
@@ -255,6 +256,7 @@ export class EvalRunner {
                         : undefined,
                     model: graderDef.model || opts.graderModel,
                     weight: graderDef.weight,
+                    expectedTools: graderDef.expectedTools,
                 };
 
                 const graderTimeoutMs = (opts.graderTimeoutSec ?? 120) * 1000;
@@ -341,8 +343,10 @@ export class EvalRunner {
         } finally {
             if (workspace) {
                 if (opts.trialConfig?.cleanup) {
+                    const cleanupSpinner = new Spinner(`${index + 1}/${total}`, 'cleaning up trial');
                     try {
                         const result = await this.provider.runCommand(workspace, opts.trialConfig.cleanup, env);
+                        cleanupSpinner.stop(fmt.pass('cleaned up'));
                         sessionLog.push({
                             type: 'trial_cleanup',
                             timestamp: this.timestamp(),

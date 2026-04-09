@@ -102,14 +102,29 @@ function validateConfig(raw: any): EvalConfig {
             name: t.name,
             instruction: t.instruction,
             workspace,
-            graders: t.graders.map((g: any) => ({
-                type: g.type,
-                setup: g.setup,
-                run: g.run,
-                rubric: g.rubric,
-                model: g.model,
-                weight: g.weight ?? 1.0,
-            })),
+            graders: t.graders.map((g: any) => {
+                if (g.type === 'tool_usage') {
+                    if (g.expectedTools) {
+                        if (!Array.isArray(g.expectedTools)) {
+                            throw new Error(`Task "${t.name}" has invalid expectedTools: must be an array`);
+                        }
+                        for (const et of g.expectedTools) {
+                            if (typeof et !== 'object' || !et.name) {
+                                throw new Error(`Task "${t.name}" has invalid expectedTool: must be an object with a "name" property`);
+                            }
+                        }
+                    }
+                }
+                return {
+                    type: g.type,
+                    setup: g.setup,
+                    run: g.run,
+                    rubric: g.rubric,
+                    model: g.model,
+                    weight: g.weight ?? 1.0,
+                    expectedTools: g.expectedTools,
+                };
+            }),
             solution: t.solution,
             agent: t.agent,
             provider: t.provider,
@@ -157,6 +172,7 @@ export async function resolveTask(
                 setup: g.setup,
                 model: g.model,
                 weight: g.weight,
+                expectedTools: g.expectedTools,
             };
             if (g.type === 'deterministic' && g.run) {
                 resolved.run = await resolveFileOrInline(g.run, baseDir);
