@@ -3,6 +3,7 @@
  */
 import * as fs from 'fs-extra';
 import * as path from 'path';
+import * as os from 'os';
 import {
     EvalConfig,
     EvalDefaults,
@@ -54,6 +55,19 @@ export async function loadEvalConfig(dir: string): Promise<EvalConfig> {
     return validateConfig(raw);
 }
 
+function validateMounts(mounts: any, context: string) {
+    if (mounts) {
+        if (!Array.isArray(mounts)) {
+            throw new Error(`${context} must be an array`);
+        }
+        for (const m of mounts) {
+            if (typeof m !== 'string') {
+                throw new Error(`${context} must be an array of strings`);
+            }
+        }
+    }
+}
+
 /**
  * Validate raw parsed YAML into a typed EvalConfig.
  */
@@ -77,6 +91,8 @@ function validateConfig(raw: any): EvalConfig {
         env: raw.defaults?.env,
     };
 
+    validateMounts(defaults.environment.mounts, 'defaults.environment.mounts');
+
     if (!raw.tasks || !Array.isArray(raw.tasks) || raw.tasks.length === 0) {
         throw new Error('eval.yaml must have at least one task in the "tasks" array');
     }
@@ -86,6 +102,10 @@ function validateConfig(raw: any): EvalConfig {
         if (!t.instruction) throw new Error(`Task "${t.name}" is missing an "instruction"`);
         if (!t.graders || !Array.isArray(t.graders) || t.graders.length === 0) {
             throw new Error(`Task "${t.name}" must have at least one grader`);
+        }
+
+        if (t.environment) {
+            validateMounts(t.environment.mounts, `Task "${t.name}" environment.mounts`);
         }
 
         const workspace: WorkspaceMapping[] = (t.workspace || []).map((w: any) => {
@@ -134,6 +154,7 @@ function validateConfig(raw: any): EvalConfig {
             docker: t.docker,
             trialConfig: t.trialConfig,
             env: t.env,
+            environment: t.environment,
         };
     });
 
@@ -161,6 +182,16 @@ export async function resolveTask(
         ...defaults.environment,
         ...(task.environment || {}),
     };
+
+    if (environment.mounts) {
+        environment.mounts = environment.mounts.map(m => {
+            if (m.startsWith('~')) {
+                return os.homedir() + m.slice(1);
+            }
+            return m;
+        });
+    }
+
     const grader_model = task.grader_model || defaults.grader_model;
     const env = {
         ...defaults.env,

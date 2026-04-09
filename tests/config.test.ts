@@ -253,6 +253,59 @@ tasks:
     expect(config.tasks[0].env).toEqual({ TASK_VAR: 'task' });
     expect(config.tasks[0].trialConfig?.env).toEqual({ TRIAL_VAR: 'trial' });
   });
+
+  it('throws when defaults.environment.mounts is not an array', async () => {
+    mockPathExists.mockResolvedValue(true as any);
+    const yaml = `version: "1"
+defaults:
+  environment:
+    mounts: "not an array"
+tasks:
+  - name: test-task
+    instruction: "do it"
+    graders:
+      - type: deterministic
+        run: "echo ok"
+`;
+    mockReadFile.mockResolvedValue(yaml as any);
+    await expect(loadEvalConfig('/test')).rejects.toThrow('defaults.environment.mounts must be an array');
+  });
+
+  it('throws when task environment.mounts is not an array', async () => {
+    mockPathExists.mockResolvedValue(true as any);
+    const yaml = `version: "1"
+tasks:
+  - name: test-task
+    instruction: "do it"
+    environment:
+      mounts: "not an array"
+    graders:
+      - type: deterministic
+        run: "echo ok"
+`;
+    mockReadFile.mockResolvedValue(yaml as any);
+    await expect(loadEvalConfig('/test')).rejects.toThrow('environment.mounts must be an array');
+  });
+
+  it('parses valid mounts correctly', async () => {
+    mockPathExists.mockResolvedValue(true as any);
+    const yaml = `version: "1"
+defaults:
+  environment:
+    mounts:
+      - "/host:/container:ro"
+tasks:
+  - name: test-task
+    instruction: "do it"
+    graders:
+      - type: deterministic
+        run: "echo ok"
+`;
+    mockReadFile.mockResolvedValue(yaml as any);
+
+    const config = await loadEvalConfig('/test');
+    expect(config.defaults.environment.mounts).toEqual(['/host:/container:ro']);
+  });
 });
 
 describe('resolveTask', () => {
@@ -422,5 +475,23 @@ describe('resolveTask', () => {
       OVERRIDDEN: 'task',
     });
     expect(resolved.trialConfig?.env).toEqual({ TRIAL_VAR: 'trial' });
+  });
+
+  it('resolves ~ in mounts', async () => {
+    const task: EvalTaskConfig = {
+      name: 'test-task',
+      instruction: 'do it',
+      environment: {
+        mounts: ['~/.config:/tmp/config'],
+      },
+      graders: [{ type: 'deterministic', run: 'echo ok', weight: 1.0 }],
+    };
+
+    mockPathExists.mockResolvedValue(false as any);
+
+    const resolved = await resolveTask(task, defaults, '/base');
+    expect(resolved.environment.mounts).toHaveLength(1);
+    expect(resolved.environment.mounts![0]).not.toContain('~');
+    expect(resolved.environment.mounts![0]).toContain(require('os').homedir());
   });
 });

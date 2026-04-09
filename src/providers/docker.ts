@@ -104,6 +104,7 @@ export class DockerProvider implements EnvironmentProvider {
             HostConfig: {
                 NanoCpus: config.environment.cpus * 1e9,
                 Memory: config.environment.memory_mb * 1024 * 1024,
+                Binds: config.environment.mounts,
             }
         });
 
@@ -191,13 +192,21 @@ export class DockerProvider implements EnvironmentProvider {
         const container = this.docker.getContainer(containerId);
         const envPairs = env ? Object.entries(env).map(([k, v]) => `${k}=${v}`) : [];
 
-        const exec = await container.exec({
-            Cmd: ['/bin/bash', '-c', command],
-            AttachStdout: true,
-            AttachStderr: true,
-            Tty: false,
-            Env: envPairs
-        });
+        let exec;
+        try {
+            exec = await container.exec({
+                Cmd: ['/bin/bash', '-c', command],
+                AttachStdout: true,
+                AttachStderr: true,
+                Tty: false,
+                Env: envPairs
+            });
+        } catch (e: any) {
+            if (e.statusCode === 409 || e.message.includes('container stopped/paused')) {
+                throw new Error(`Container is not running`);
+            }
+            throw e;
+        }
 
         const stream = await exec.start({});
 
@@ -227,6 +236,16 @@ export class DockerProvider implements EnvironmentProvider {
 
     async diagnose(containerId: string): Promise<string> {
         const container = this.docker.getContainer(containerId);
+        
+        try {
+            const inspect = await container.inspect();
+            if (!inspect.State.Running) {
+                return `=== Docker Container Diagnostics ===\nContainer is not running (State: ${JSON.stringify(inspect.State)})`;
+            }
+        } catch (e) {
+            return `=== Docker Container Diagnostics ===\nFailed to inspect container: ${e}`;
+        }
+
         const lines: string[] = ['=== Docker Container Diagnostics ==='];
 
         const runDiag = async (label: string, cmd: string) => {

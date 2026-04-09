@@ -89,6 +89,8 @@ defaults:
   environment:           # container resource limits
     cpus: 2
     memory_mb: 2048
+    mounts:              # bind mounts (Docker only)
+      - /host/path:/container/path
 
 tasks:
   - name: fix-linting-errors
@@ -131,6 +133,17 @@ rubric: rubrics/workflow-quality.md
 trialConfig:
   setup: scripts/setup.sh
   cleanup: scripts/cleanup.sh
+```
+
+### Docker Bind Mounts
+
+You can mount directories or files from your host machine into the Docker container by specifying `mounts` in the `environment` section (either in `defaults` or per-task).
+
+```yaml
+environment:
+  mounts:
+    - /host/path:/container/path
+    - ~/data:/data # Supports ~ expansion for home directory
 ```
 
 ## Graders

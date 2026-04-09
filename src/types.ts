@@ -73,6 +73,7 @@ export interface EnvironmentSetupOpts {
     environment: {
         cpus: number;
         memory_mb: number;
+        mounts?: string[];
     };
 }
 

@@ -58,6 +58,7 @@ export interface EvalRunOptions {
     environment: {
         cpus: number;
         memory_mb: number;
+        mounts?: string[];
     };
 }
 
@@ -364,6 +365,7 @@ export class EvalRunner {
                             console.error(`Per-trial cleanup failed with exit code ${result.exitCode}\nstdout: ${result.stdout}\nstderr: ${result.stderr}`);
                         }
                     } catch (e) {
+                        cleanupSpinner.stop(fmt.fail('failed'));
                         console.error(`Error running per-trial cleanup: ${e}`);
                     }
                 }

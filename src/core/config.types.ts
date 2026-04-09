@@ -35,7 +35,7 @@ export interface DockerConfig {
 export interface EnvironmentConfig {
     cpus: number;
     memory_mb: number;
-    binds?: string[];
+    mounts?: string[];
 }
 
 export interface TrialConfig {
