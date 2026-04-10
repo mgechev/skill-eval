@@ -149,6 +149,27 @@ tasks:
     expect(config.tasks[0].trialConfig?.cleanup).toBe('echo cleanup');
   });
 
+  it('parses default trialConfig correctly', async () => {
+    mockPathExists.mockResolvedValue(true as any);
+    const yaml = `version: "1"
+defaults:
+  trialConfig:
+    setup: "echo default setup"
+    cleanup: "echo default cleanup"
+tasks:
+  - name: test-task
+    instruction: "do it"
+    graders:
+      - type: deterministic
+        run: "echo ok"
+`;
+    mockReadFile.mockResolvedValue(yaml as any);
+
+    const config = await loadEvalConfig('/test');
+    expect(config.defaults.trialConfig?.setup).toBe('echo default setup');
+    expect(config.defaults.trialConfig?.cleanup).toBe('echo default cleanup');
+  });
+
   it('applies default values when defaults not specified', async () => {
     mockPathExists.mockResolvedValue(true as any);
     const yaml = `version: "1"
@@ -475,6 +496,69 @@ describe('resolveTask', () => {
       OVERRIDDEN: 'task',
     });
     expect(resolved.trialConfig?.env).toEqual({ TRIAL_VAR: 'trial' });
+  });
+
+  it('merges trialConfig correctly', async () => {
+    const defaultsWithTrialConfig = {
+      ...defaults,
+      trialConfig: {
+        setup: 'echo default setup',
+        cleanup: 'echo default cleanup',
+        env: { DEFAULT_VAR: 'default' },
+      },
+    };
+    const task: EvalTaskConfig = {
+      name: 'test-task',
+      instruction: 'do it',
+      trialConfig: {
+        setup: 'echo task setup',
+        cleanup: 'echo task cleanup',
+        env: { TASK_VAR: 'task' },
+      },
+      graders: [{ type: 'deterministic', run: 'echo ok', weight: 1.0 }],
+    };
+
+    mockPathExists.mockResolvedValue(false as any);
+
+    const resolved = await resolveTask(task, defaultsWithTrialConfig, '/base');
+    expect(resolved.trialConfig?.setup).toBe('echo default setup\necho task setup');
+    expect(resolved.trialConfig?.cleanup).toBe('echo default cleanup\necho task cleanup');
+    expect(resolved.trialConfig?.env).toEqual({
+      DEFAULT_VAR: 'default',
+      TASK_VAR: 'task',
+    });
+  });
+
+  it('merges trialConfig with file references correctly', async () => {
+    const defaultsWithTrialConfig = {
+      ...defaults,
+      trialConfig: {
+        setup: 'default_setup.sh',
+        cleanup: 'echo default cleanup',
+      },
+    };
+    const task: EvalTaskConfig = {
+      name: 'test-task',
+      instruction: 'do it',
+      trialConfig: {
+        setup: 'echo task setup',
+        cleanup: 'task_cleanup.sh',
+      },
+      graders: [{ type: 'deterministic', run: 'echo ok', weight: 1.0 }],
+    };
+
+    mockPathExists.mockImplementation(async (p) => typeof p === 'string' && (p.endsWith('default_setup.sh') || p.endsWith('task_cleanup.sh')));
+    mockReadFile.mockImplementation(async (p) => {
+        if (typeof p === 'string') {
+            if (p.endsWith('default_setup.sh')) return 'echo from default file';
+            if (p.endsWith('task_cleanup.sh')) return 'echo from task file';
+        }
+        return '' as any;
+    });
+
+    const resolved = await resolveTask(task, defaultsWithTrialConfig, '/base');
+    expect(resolved.trialConfig?.setup).toBe('echo from default file\necho task setup');
+    expect(resolved.trialConfig?.cleanup).toBe('echo default cleanup\necho from task file');
   });
 
   it('resolves ~ in mounts', async () => {

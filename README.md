@@ -274,12 +274,12 @@ You can define custom environment variables at multiple levels to customize the 
 
 #### Supported Locations
 
-- **`defaults` in `eval.yaml`**: Sets environment variables for all tasks in the file.
-- **`tasks` in `eval.yaml`**: Sets environment variables for a specific task, overriding defaults.
-- **`trialConfig` in `eval.yaml`**: Sets environment variables for a specific trial, overriding task and default settings.
+- **`defaults` in `eval.yaml`**: Sets base configuration (environment variables, `trialConfig`, etc.) for all tasks.
+- **`tasks` in `eval.yaml`**: Sets configuration for a specific task, overriding defaults.
+- **`trialConfig` in `eval.yaml`**: Sets hooks and environment variables for a specific trial. Can be defined in `defaults` and overridden or merged at the task level.
 - **`.env` file**: Located in the skill directory. These are loaded as base environment variables.
 
-#### Precedence Order
+#### Precedence Order for Environment Variables
 
 Variables are merged in the following order (highest priority wins):
 
@@ -306,6 +306,12 @@ tasks:
         TRIAL_VAR: "trial_value"
         TASK_VAR: "overridden_by_trial"
 ```
+
+### trialConfig Merging
+
+When `trialConfig` is specified in both `defaults` and a specific task:
+- `env` objects are merged (task overrides defaults).
+- `setup` and `cleanup` scripts are **concatenated** with a newline (default script runs first, followed by task script).
 
 All environment variables (including those from `.env` and `eval.yaml`) are **redacted** from persisted session logs by default.
 

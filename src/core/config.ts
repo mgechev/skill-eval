@@ -12,6 +12,7 @@ import {
     ResolvedGrader,
     WorkspaceMapping,
     EnvironmentConfig,
+    TrialConfig,
 } from './config.types';
 
 // We use a simple YAML parser — js-yaml is the standard
@@ -68,6 +69,23 @@ function validateMounts(mounts: any, context: string) {
     }
 }
 
+function validateTrialConfig(tc: any, context: string) {
+    if (tc) {
+        if (typeof tc !== 'object') {
+            throw new Error(`${context} must be an object`);
+        }
+        if (tc.setup && typeof tc.setup !== 'string') {
+            throw new Error(`${context}.setup must be a string`);
+        }
+        if (tc.cleanup && typeof tc.cleanup !== 'string') {
+            throw new Error(`${context}.cleanup must be a string`);
+        }
+        if (tc.env && typeof tc.env !== 'object') {
+            throw new Error(`${context}.env must be an object`);
+        }
+    }
+}
+
 /**
  * Validate raw parsed YAML into a typed EvalConfig.
  */
@@ -89,9 +107,11 @@ function validateConfig(raw: any): EvalConfig {
             ...(raw.defaults?.environment || {}),
         },
         env: raw.defaults?.env,
+        trialConfig: raw.defaults?.trialConfig,
     };
 
     validateMounts(defaults.environment.mounts, 'defaults.environment.mounts');
+    validateTrialConfig(defaults.trialConfig, 'defaults.trialConfig');
 
     if (!raw.tasks || !Array.isArray(raw.tasks) || raw.tasks.length === 0) {
         throw new Error('eval.yaml must have at least one task in the "tasks" array');
@@ -107,6 +127,8 @@ function validateConfig(raw: any): EvalConfig {
         if (t.environment) {
             validateMounts(t.environment.mounts, `Task "${t.name}" environment.mounts`);
         }
+
+        validateTrialConfig(t.trialConfig, `Task "${t.name}" trialConfig`);
 
         const workspace: WorkspaceMapping[] = (t.workspace || []).map((w: any) => {
             if (typeof w === 'string') {
@@ -226,6 +248,38 @@ export async function resolveTask(
         ? path.resolve(baseDir, task.solution)
         : undefined;
 
+    // Merge trialConfig
+    const defaultTC = defaults.trialConfig;
+    const taskTC = task.trialConfig;
+    let trialConfig: TrialConfig | undefined = undefined;
+
+    if (defaultTC || taskTC) {
+        const env = {
+            ...defaultTC?.env,
+            ...taskTC?.env,
+        };
+
+        const setupParts = [];
+        if (defaultTC?.setup) setupParts.push(await resolveFileOrInline(defaultTC.setup, baseDir));
+        if (taskTC?.setup) setupParts.push(await resolveFileOrInline(taskTC.setup, baseDir));
+
+        const cleanupParts = [];
+        if (defaultTC?.cleanup) cleanupParts.push(await resolveFileOrInline(defaultTC.cleanup, baseDir));
+        if (taskTC?.cleanup) cleanupParts.push(await resolveFileOrInline(taskTC.cleanup, baseDir));
+
+        const mergedEnv = Object.keys(env).length > 0 ? env : undefined;
+        const mergedSetup = setupParts.length > 0 ? setupParts.join('\n') : undefined;
+        const mergedCleanup = cleanupParts.length > 0 ? cleanupParts.join('\n') : undefined;
+
+        if (mergedEnv || mergedSetup || mergedCleanup) {
+            trialConfig = {
+                env: mergedEnv,
+                setup: mergedSetup,
+                cleanup: mergedCleanup,
+            };
+        }
+    }
+
     return {
         name: task.name,
         instruction,
@@ -240,11 +294,7 @@ export async function resolveTask(
         docker,
         environment,
         env,
-        trialConfig: task.trialConfig ? {
-            setup: task.trialConfig.setup ? await resolveFileOrInline(task.trialConfig.setup, baseDir) : undefined,
-            cleanup: task.trialConfig.cleanup ? await resolveFileOrInline(task.trialConfig.cleanup, baseDir) : undefined,
-            env: task.trialConfig.env,
-        } : undefined,
+        trialConfig,
     };
 }
 

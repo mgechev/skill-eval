@@ -75,6 +75,7 @@ export interface EvalDefaults {
     docker: DockerConfig;
     environment: EnvironmentConfig;
     env?: Record<string, string>;
+    trialConfig?: TrialConfig;
 }
 
 /** Top-level eval.yaml */
