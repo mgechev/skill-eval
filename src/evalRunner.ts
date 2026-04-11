@@ -60,6 +60,7 @@ export interface EvalRunOptions {
         memory_mb: number;
         mounts?: string[];
     };
+    agentWorkingDir?: string;
 }
 
 export class EvalRunner {
@@ -228,7 +229,7 @@ export class EvalRunner {
 
             const agentTimeoutMs = opts.timeoutSec * 1000;
             const agentLogs = await withTimeout(
-                agent.run(instruction, workspace, loggedRunCommand),
+                agent.run(instruction, workspace, loggedRunCommand, { agentWorkingDir: opts.agentWorkingDir }),
                 agentTimeoutMs,
                 `Agent (limit: ${opts.timeoutSec}s)`
             );

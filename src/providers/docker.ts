@@ -48,33 +48,54 @@ export class DockerProvider implements EnvironmentProvider {
                 Tty: false
             });
 
-            await tmpContainer.start();
+            try {
+                await tmpContainer.start();
 
-            const discoveryDirs = ['/workspace/.agents/skills', '/workspace/.claude/skills'];
-            for (const dir of discoveryDirs) {
-                const mkdirExec = await tmpContainer.exec({ Cmd: ['mkdir', '-p', dir], AttachStdout: true, AttachStderr: true });
-                const mkdirStream = await mkdirExec.start({});
+                // Detect $HOME in container
+                const homeExec = await tmpContainer.exec({ Cmd: ['sh', '-c', 'echo $HOME'], AttachStdout: true });
+                const homeStream = await homeExec.start({});
+                let homeDir = '';
+                
+                const stdoutStream = new (require('stream').PassThrough)();
+                stdoutStream.on('data', (chunk: Buffer) => { homeDir += chunk.toString(); });
+                
+                this.docker.modem.demuxStream(homeStream, stdoutStream, new (require('stream').PassThrough)());
+
                 await new Promise<void>((resolve) => {
-                    mkdirStream.on('end', resolve);
-                    mkdirStream.on('error', resolve);
-                    mkdirStream.resume();
+                    homeStream.on('end', resolve);
+                    homeStream.on('error', resolve);
                 });
+                homeDir = homeDir.trim() || '/root';
 
-                for (const skillPath of skillsPaths) {
-                    const skillName = path.basename(skillPath);
-                    const archive = await this.createTarFromDir(skillPath, skillName);
-                    await tmpContainer.putArchive(archive, { path: dir });
+                const discoveryDirs = [
+                    path.join(homeDir, '.agents', 'skills'),
+                    path.join(homeDir, '.claude', 'skills')
+                ];
+                for (const dir of discoveryDirs) {
+                    const mkdirExec = await tmpContainer.exec({ Cmd: ['mkdir', '-p', dir], AttachStdout: true, AttachStderr: true });
+                    const mkdirStream = await mkdirExec.start({});
+                    await new Promise<void>((resolve) => {
+                        mkdirStream.on('end', resolve);
+                        mkdirStream.on('error', resolve);
+                        mkdirStream.resume();
+                    });
+
+                    for (const skillPath of skillsPaths) {
+                        const skillName = path.basename(skillPath);
+                        const archive = await this.createTarFromDir(skillPath, skillName);
+                        await tmpContainer.putArchive(archive, { path: dir });
+                    }
                 }
+
+                // Commit the container with skills baked in
+                await tmpContainer.commit({ repo: `${baseName}-ready` });
+                this.preparedImage = `${baseName}-ready`;
+            } finally {
+                // Clean up temp container and base image
+                await tmpContainer.kill().catch(() => { });
+                await tmpContainer.remove({ force: true }).catch(() => { });
+                await this.docker.getImage(baseName).remove({ force: true }).catch(() => { });
             }
-
-            // Commit the container with skills baked in
-            const committed = await tmpContainer.commit({ repo: `${baseName}-ready` });
-            this.preparedImage = `${baseName}-ready`;
-
-            // Clean up temp container and base image
-            await tmpContainer.kill().catch(() => { });
-            await tmpContainer.remove({ force: true }).catch(() => { });
-            await this.docker.getImage(baseName).remove({ force: true }).catch(() => { });
         } else {
             this.preparedImage = baseName;
         }

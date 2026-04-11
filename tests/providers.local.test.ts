@@ -8,8 +8,19 @@ import { LocalProvider } from '../src/providers/local';
 describe('LocalProvider', () => {
   const provider = new LocalProvider();
   let tempDirs: string[] = [];
+  let originalHome: string | undefined;
+  let mockHome: string;
+
+  beforeEach(async () => {
+    originalHome = process.env.HOME;
+    mockHome = path.join(os.tmpdir(), `skillgrade-mock-home-${Date.now()}`);
+    await fsExtra.ensureDir(mockHome);
+    process.env.HOME = mockHome;
+    tempDirs.push(mockHome);
+  });
 
   afterEach(async () => {
+    process.env.HOME = originalHome;
     for (const dir of tempDirs) {
       try { await fsExtra.remove(dir); } catch {}
     }
@@ -61,11 +72,11 @@ describe('LocalProvider', () => {
 
       const skillName = path.basename(skillDir);
       // Check Gemini discovery path
-      const geminiPath = path.join(workspace, '.agents', 'skills', skillName, 'SKILL.md');
+      const geminiPath = path.join(mockHome, '.agents', 'skills', skillName, 'SKILL.md');
       expect(await fsExtra.pathExists(geminiPath)).toBe(true);
 
       // Check Claude discovery path
-      const claudePath = path.join(workspace, '.claude', 'skills', skillName, 'SKILL.md');
+      const claudePath = path.join(mockHome, '.claude', 'skills', skillName, 'SKILL.md');
       expect(await fsExtra.pathExists(claudePath)).toBe(true);
     });
 

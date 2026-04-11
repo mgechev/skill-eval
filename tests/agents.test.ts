@@ -63,6 +63,20 @@ describe('GeminiAgent', () => {
     const expectedB64 = Buffer.from(instruction).toString('base64');
     expect(capturedCmd).toContain(expectedB64);
   });
+
+  it('prepends cd to gemini command when agentWorkingDir is provided', async () => {
+    const agent = new GeminiAgent();
+    const commands: string[] = [];
+    const mockRunCommand = vi.fn().mockImplementation(async (cmd: string): Promise<CommandResult> => {
+      commands.push(cmd);
+      return { stdout: 'output', stderr: '', exitCode: 0 };
+    });
+
+    await agent.run('Test instruction', '/workspace', mockRunCommand, { agentWorkingDir: 'sub-dir' });
+
+    expect(commands).toHaveLength(2);
+    expect(commands[1]).toContain('cd sub-dir && gemini');
+  });
 });
 
 describe('ClaudeAgent', () => {

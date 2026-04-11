@@ -373,4 +373,5 @@ describe('EvalRunner', () => {
     expect(setupLog).toBeTruthy();
     expect(setupLog?.command).toBe('echo setup');
   });
+
 });

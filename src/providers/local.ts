@@ -12,16 +12,21 @@ export class LocalProvider implements EnvironmentProvider {
 
             // Inject skills into agent discovery paths
             // Gemini: .agents/skills/  |  Claude: .claude/skills/
-            const discoveryDirs = [
-                path.join(tempDir, '.agents', 'skills'),
-                path.join(tempDir, '.claude', 'skills'),
-            ];
+            if (skillsPaths.length > 0) {
+                const homeDir = process.env.HOME || '/root';
+                const discoveryDirs = [
+                    path.join(homeDir, '.agents', 'skills'),
+                    path.join(homeDir, '.claude', 'skills'),
+                ];
 
-            for (const skillsDir of discoveryDirs) {
-                await fs.ensureDir(skillsDir);
-                for (const spath of skillsPaths) {
-                    const skillName = path.basename(spath);
-                    await fs.copy(spath, path.join(skillsDir, skillName));
+                console.warn(`[SkillGrade] Injecting skills into ${homeDir}/.agents/skills and .claude/skills`);
+
+                for (const skillsDir of discoveryDirs) {
+                    await fs.ensureDir(skillsDir);
+                    for (const spath of skillsPaths) {
+                        const skillName = path.basename(spath);
+                        await fs.copy(spath, path.join(skillsDir, skillName));
+                    }
                 }
             }
 

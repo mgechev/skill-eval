@@ -91,7 +91,7 @@ tasks:
         run: "echo ok"
 `;
     mockReadFile.mockResolvedValue(yaml as any);
-    await expect(loadEvalConfig('/test')).rejects.toThrow('without src/dest');
+    await expect(loadEvalConfig('/test')).rejects.toThrow('without dest');
   });
 
   it('parses valid config correctly', async () => {
@@ -326,6 +326,23 @@ tasks:
 
     const config = await loadEvalConfig('/test');
     expect(config.defaults.environment.mounts).toEqual(['/host:/container:ro']);
+  });
+
+  it('parses agentWorkingDir correctly', async () => {
+    mockPathExists.mockResolvedValue(true as any);
+    const yaml = `version: "1"
+tasks:
+  - name: test-task
+    instruction: "do it"
+    agentWorkingDir: "sub-dir"
+    graders:
+      - type: deterministic
+        run: "echo ok"
+`;
+    mockReadFile.mockResolvedValue(yaml as any);
+
+    const config = await loadEvalConfig('/test');
+    expect(config.tasks[0].agentWorkingDir).toBe('sub-dir');
   });
 });
 
@@ -577,5 +594,19 @@ describe('resolveTask', () => {
     expect(resolved.environment.mounts).toHaveLength(1);
     expect(resolved.environment.mounts![0]).not.toContain('~');
     expect(resolved.environment.mounts![0]).toContain(require('os').homedir());
+  });
+
+  it('resolves agentWorkingDir correctly', async () => {
+    const task: EvalTaskConfig = {
+      name: 'test-task',
+      instruction: 'do it',
+      agentWorkingDir: 'sub-dir',
+      graders: [{ type: 'deterministic', run: 'echo ok', weight: 1.0 }],
+    };
+
+    mockPathExists.mockResolvedValue(false as any);
+
+    const resolved = await resolveTask(task, defaults, '/base');
+    expect(resolved.agentWorkingDir).toBe('sub-dir');
   });
 });

@@ -130,6 +130,7 @@ export async function runEvals(dir: string, opts: RunOptions) {
                 cleanup: resolved.trialConfig?.cleanup ? 'bash scripts/trial_cleanup.sh' : undefined,
                 env: resolved.trialConfig?.env,
             },
+            agentWorkingDir: resolved.agentWorkingDir,
         };
 
         // Pick agent: CLI flag > task-level override > auto-detect from API key > default

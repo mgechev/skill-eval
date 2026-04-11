@@ -63,6 +63,7 @@ export interface EvalTaskConfig {
     grader_model?: string;
     docker?: DockerConfig;
     environment?: Partial<EnvironmentConfig>;
+    agentWorkingDir?: string;
 }
 
 /** Top-level defaults */
@@ -103,6 +104,7 @@ export interface ResolvedTask {
     docker: DockerConfig;
     environment: EnvironmentConfig;
     env?: Record<string, string>;
+    agentWorkingDir?: string;
 }
 
 export interface ResolvedGrader {

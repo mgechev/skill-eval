@@ -130,6 +130,10 @@ function validateConfig(raw: any): EvalConfig {
 
         validateTrialConfig(t.trialConfig, `Task "${t.name}" trialConfig`);
 
+        if (t.agentWorkingDir && typeof t.agentWorkingDir !== 'string') {
+            throw new Error(`Task "${t.name}" agentWorkingDir must be a string`);
+        }
+
         const workspace: WorkspaceMapping[] = (t.workspace || []).map((w: any) => {
             if (typeof w === 'string') {
                 // Support shorthand: "fixtures/app.js" → same filename in workspace
@@ -183,6 +187,7 @@ function validateConfig(raw: any): EvalConfig {
             trialConfig: t.trialConfig,
             env: t.env,
             environment: t.environment,
+            agentWorkingDir: t.agentWorkingDir,
         };
     });
 
@@ -301,6 +306,7 @@ export async function resolveTask(
         environment,
         env,
         trialConfig,
+        agentWorkingDir: task.agentWorkingDir,
     };
 }
 

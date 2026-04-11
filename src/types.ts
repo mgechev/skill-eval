@@ -62,7 +62,8 @@ export abstract class BaseAgent {
     abstract run(
         instruction: string,
         workspacePath: string,
-        runCommand: (cmd: string) => Promise<CommandResult>
+        runCommand: (cmd: string) => Promise<CommandResult>,
+        options?: { agentWorkingDir?: string }
     ): Promise<string>;
 }
 
