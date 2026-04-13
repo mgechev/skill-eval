@@ -436,6 +436,26 @@ describe('resolveTask', () => {
     expect(resolved.graders[0].run).toBe('#!/bin/bash\necho pass');
   });
 
+  it('resolves deterministic grader run from file with arguments', async () => {
+    const task: EvalTaskConfig = {
+      name: 'test-task',
+      instruction: 'multi\nline instruction',
+      graders: [{ type: 'deterministic', run: 'test.sh --arg1 val1', weight: 1.0 }],
+    };
+
+    mockPathExists.mockImplementation(async (p) => {
+        if (typeof p === 'string') {
+            if (p.endsWith('test.sh --arg1 val1')) return false;
+            if (p.endsWith('test.sh')) return true;
+        }
+        return false;
+    });
+    mockReadFile.mockResolvedValue('#!/bin/bash\necho $1' as any);
+
+    const resolved = await resolveTask(task, defaults, '/base');
+    expect(resolved.graders[0].run).toBe('(\n  set -- --arg1 val1\n  #!/bin/bash\necho $1\n)');
+  });
+
   it('resolves llm_rubric grader rubric from file', async () => {
     const task: EvalTaskConfig = {
       name: 'test-task',
@@ -576,6 +596,41 @@ describe('resolveTask', () => {
     const resolved = await resolveTask(task, defaultsWithTrialConfig, '/base');
     expect(resolved.trialConfig?.setup).toBe('echo from default file\necho task setup');
     expect(resolved.trialConfig?.cleanup).toBe('echo default cleanup\necho from task file');
+  });
+
+  it('merges trialConfig with arguments correctly', async () => {
+    const defaultsWithTrialConfig = {
+      ...defaults,
+      trialConfig: {
+        setup: 'default_setup.sh --flag1',
+      },
+    };
+    const task: EvalTaskConfig = {
+      name: 'test-task',
+      instruction: 'do it',
+      trialConfig: {
+        setup: 'task_setup.sh --flag2',
+      },
+      graders: [{ type: 'deterministic', run: 'echo ok', weight: 1.0 }],
+    };
+
+    mockPathExists.mockImplementation(async (p) => {
+        if (typeof p === 'string') {
+            if (p.endsWith('default_setup.sh')) return true;
+            if (p.endsWith('task_setup.sh')) return true;
+        }
+        return false;
+    });
+    mockReadFile.mockImplementation(async (p) => {
+        if (typeof p === 'string') {
+            if (p.endsWith('default_setup.sh')) return 'echo from default file';
+            if (p.endsWith('task_setup.sh')) return 'echo from task file';
+        }
+        return '' as any;
+    });
+
+    const resolved = await resolveTask(task, defaultsWithTrialConfig, '/base');
+    expect(resolved.trialConfig?.setup).toBe('(\n  set -- --flag1\n  echo from default file\n)\n(\n  set -- --flag2\n  echo from task file\n)');
   });
 
   it('resolves ~ in mounts', async () => {

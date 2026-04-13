@@ -326,5 +326,17 @@ async function resolveFileOrInline(value: string, baseDir: string): Promise<stri
         return (await fs.readFile(candidate, 'utf-8')).trim();
     }
 
+    // Try to split by first space to handle arguments
+    const parts = trimmed.split(' ');
+    if (parts.length > 1) {
+        const scriptPath = parts[0];
+        const scriptCandidate = path.resolve(baseDir, scriptPath);
+        if (await fs.pathExists(scriptCandidate)) {
+            const content = await fs.readFile(scriptCandidate, 'utf-8');
+            const args = parts.slice(1).join(' ');
+            return `(\n  set -- ${args}\n  ${content.trim()}\n)`;
+        }
+    }
+
     return trimmed;
 }

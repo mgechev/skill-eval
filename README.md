@@ -127,15 +127,29 @@ tasks:
     agent: claude
     trials: 10
     timeout: 600
+    solution: solutions/solve.sh         # reference solution for --validate mode
 ```
 
-String values (`instruction`, `rubric`, `run`) and `trialConfig` fields (`setup`, `cleanup`) support **file references** — if the value is a valid file path, its contents are read automatically:
+String values (`instruction`, `rubric`, `run`) and `trialConfig` fields (`setup`, `cleanup`) support **file references** — if the value is a valid file path, its contents are read automatically.
 
+### Script Arguments
+
+For fields that execute scripts (`run` for deterministic graders, and `setup`/`cleanup` in `trialConfig`), you can also pass arguments by appending them to the file path:
+
+```yaml
+graders:
+  - type: deterministic
+    run: graders/check.sh --verbose --mode fast
+```
+
+If the string starts with a valid file path followed by arguments, `skillgrade` will read the file content and automatically pass the arguments to it when executed. This works even when `setup`/`cleanup` scripts from `defaults` and `tasks` are merged!
+
+Example with file references:
 ```yaml
 instruction: instructions/fix-linting.md
 rubric: rubrics/workflow-quality.md
 trialConfig:
-  setup: scripts/setup.sh
+  setup: scripts/setup.sh --flag
   cleanup: scripts/cleanup.sh
 ```
 
