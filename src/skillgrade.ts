@@ -46,7 +46,7 @@ async function main() {
     }
 
     if (command === 'init') {
-        await runInit(cwd, { force: hasFlag('force') });
+        await runInit(cwd, { force: hasFlag('force'), config: getFlag('config') });
         return;
     }
 
@@ -91,6 +91,7 @@ async function main() {
     const outputDir = getFlag('output') || path.join(os.tmpdir(), 'skillgrade');
 
     await runEvals(cwd, {
+        config: getFlag('config'),
         eval: evalFilter,
         trials: explicitTrials ?? presetTrials,
         parallel: getFlag('parallel') ? parseInt(getFlag('parallel')!) : undefined,
@@ -103,6 +104,7 @@ async function main() {
         grader: getFlag('grader'),
         output: outputDir,
         noRedact: hasFlag('no-redact'),
+        noSkills: hasFlag('no-skills'),
     });
 
     if (openPreview) {
@@ -126,6 +128,7 @@ function printHelp() {
     --regression       High-confidence regression (30 trials, reports pass^k)
 
   Options:
+    --config=FILE      Custom eval configuration file (default: eval.yaml)
     --eval=NAME[,NAME] Run specific evals by name (comma-separated)
     --grader=TYPE      Run only graders of this type (deterministic|llm_rubric)
     --trials=N         Override trial count (overrides preset)
@@ -139,11 +142,12 @@ function printHelp() {
     --threshold=0.8    Pass rate threshold for CI mode
     --preview          Open CLI results after running
     --no-redact        Disable redaction of environment variables in reports
+    --no-skills        Run without any agent skills (for baseline testing)
 
   Examples:
     skillgrade init                # scaffold eval.yaml
     skillgrade init --force        # overwrite existing eval.yaml
-    skillgrade                     # run all evals
+    skillgrade --config=eval-baseline.yaml  # run with custom config
     skillgrade --smoke             # quick 5-trial smoke test
     skillgrade --eval=fix-linting  # run a specific eval
     skillgrade --eval=foo,bar      # run multiple evals

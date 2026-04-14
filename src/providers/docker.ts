@@ -114,8 +114,7 @@ export class DockerProvider implements EnvironmentProvider {
         }
 
         const config = this.setupOpts || opts;
-        const envPairs = this.envPairs.length > 0 ? this.envPairs
-            : (env ? Object.entries(env).map(([k, v]) => `${k}=${v}`) : []);
+        const envPairs = env ? Object.entries(env).map(([k, v]) => `${k}=${v}`) : this.envPairs;
 
         const container = await this.docker.createContainer({
             Image: this.preparedImage!,

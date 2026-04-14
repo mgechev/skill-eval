@@ -10,15 +10,17 @@ import * as path from 'path';
 import { detectSkills } from '../core/skills';
 import { parseEnvFile } from '../utils/env';
 
-export async function runInit(dir: string, opts: { force?: boolean } = {}) {
-  const evalPath = path.join(dir, 'eval.yaml');
+export async function runInit(dir: string, opts: { force?: boolean, config?: string } = {}) {
+  const filename = opts.config || 'eval.yaml';
+  const evalPath = path.isAbsolute(filename) ? filename : path.join(dir, filename);
+  const displayFilename = path.basename(evalPath);
 
   if (await fs.pathExists(evalPath)) {
     if (opts.force) {
       await fs.remove(evalPath);
     } else {
-      console.error('  eval.yaml already exists. Use --force to overwrite.');
-      throw new Error('eval.yaml already exists');
+      console.error(`  ${displayFilename} already exists. Use --force to overwrite.`);
+      throw new Error(`${displayFilename} already exists`);
     }
   }
 
@@ -62,8 +64,9 @@ export async function runInit(dir: string, opts: { force?: boolean } = {}) {
     try {
       const config = await generateWithLLM(skills, llmApiKey, llmProvider);
       await fs.writeFile(evalPath, config, 'utf-8');
-      spinner.stop(fmt.green('created eval.yaml'));
-      console.log(`     Review and edit the file, then run: skillgrade\n`);
+      spinner.stop(fmt.green(`created ${displayFilename}`));
+      const cmd = opts.config ? `skillgrade --config=${opts.config}` : 'skillgrade';
+      console.log(`     Review and edit the file, then run: ${cmd}\n`);
       return;
     } catch (err: any) {
       spinner.stop(fmt.red(`AI generation failed: ${err.message}`));
@@ -77,10 +80,10 @@ export async function runInit(dir: string, opts: { force?: boolean } = {}) {
   const skill = skills[0];
   const taskName = `test-${skill.name}`;
   const instruction = extractInstructionHint(skill.skillMd);
-  await writeTemplate(evalPath, taskName, instruction);
+  await writeTemplate(evalPath, taskName, instruction, opts.config);
 }
 
-async function writeTemplate(evalPath: string, taskName: string, instruction: string) {
+async function writeTemplate(evalPath: string, taskName: string, instruction: string, configFilename?: string) {
   const templatePath = path.join(__dirname, '..', '..', 'templates', 'eval.yaml.template');
   let template: string;
 
@@ -95,9 +98,11 @@ async function writeTemplate(evalPath: string, taskName: string, instruction: st
     .replace(/\{\{TASK_NAME\}\}/g, taskName)
     .replace(/\{\{INSTRUCTION\}\}/g, instruction);
 
+  const displayFilename = path.basename(evalPath);
   await fs.writeFile(evalPath, result, 'utf-8');
-  console.log(`  Created eval.yaml.`);
-  console.log(`     Edit the file to define your eval tasks, then run: skillgrade\n`);
+  console.log(`  Created ${displayFilename}.`);
+  const cmd = configFilename ? `skillgrade --config=${configFilename}` : 'skillgrade';
+  console.log(`     Edit the file to define your eval tasks, then run: ${cmd}\n`);
 }
 
 /**

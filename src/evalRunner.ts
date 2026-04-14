@@ -61,17 +61,23 @@ export interface EvalRunOptions {
         mounts?: string[];
     };
     agentWorkingDir?: string;
+    noSkills?: boolean;
 }
 
 export class EvalRunner {
     private provider: EnvironmentProvider;
     private logDir?: string;
     private noRedact: boolean;
+    private isCancelled: boolean = false;
 
     constructor(provider: EnvironmentProvider, logDir?: string, noRedact: boolean = false) {
         this.provider = provider;
         this.logDir = logDir;
         this.noRedact = noRedact;
+    }
+
+    public stop() {
+        this.isCancelled = true;
     }
 
     private timestamp(): string {
@@ -85,9 +91,12 @@ export class EvalRunner {
         opts: EvalRunOptions,
         numTrials: number = 1,
         env?: Record<string, string>,
-        parallel: number = 1
+        parallel: number = 1,
+        noSkills: boolean = false
     ): Promise<EvalReport> {
         const taskName = path.basename(taskPath);
+        opts.noSkills = noSkills;
+        const startTime = this.timestamp();
 
         // One-time image build (if provider supports it)
         if (this.provider.prepare) {
@@ -101,14 +110,14 @@ export class EvalRunner {
             }
         }
 
-        let trials: TrialResult[];
+        let trials: TrialResult[] = [];
 
         try {
             if (parallel > 1 && numTrials > 1) {
                 trials = await this.runTrialsParallel(agent, taskPath, skillsPaths, opts, numTrials, parallel, env);
             } else {
-                trials = [];
                 for (let i = 0; i < numTrials; i++) {
+                    if (this.isCancelled) break;
                     const result = await this.runSingleTrial(agent, taskPath, skillsPaths, opts, i, numTrials, env);
                     trials.push(result);
                 }
@@ -119,14 +128,33 @@ export class EvalRunner {
             }
         }
 
-        const totalReward = trials.reduce((sum, t) => sum + t.reward, 0);
-        const successes = trials.filter(t => t.reward >= 0.5).length;
+        // Fill in cancelled trials if interrupted
+        while (trials.length < numTrials) {
+            trials.push({
+                trial_id: trials.length + 1,
+                reward: 0,
+                grader_results: [],
+                duration_ms: 0,
+                n_commands: 0,
+                input_tokens: 0,
+                output_tokens: 0,
+                session_log: [],
+                status: 'cancelled'
+            });
+        }
+
+        const completedTrials = trials.filter(t => t.status !== 'cancelled');
+        const totalReward = completedTrials.reduce((sum, t) => sum + t.reward, 0);
+        const successes = completedTrials.filter(t => t.reward >= 0.5).length;
+        const nComp = completedTrials.length || 1;
 
         const report: EvalReport = {
             task: taskName,
-            pass_rate: totalReward / numTrials,
-            pass_at_k: calculatePassAtK(numTrials, successes, numTrials),
-            pass_pow_k: calculatePassPowK(numTrials, successes, numTrials),
+            timestamp: startTime,
+            status: this.isCancelled ? 'partial' : 'completed',
+            pass_rate: totalReward / nComp,
+            pass_at_k: calculatePassAtK(numTrials, successes, completedTrials.length),
+            pass_pow_k: calculatePassPowK(numTrials, successes, completedTrials.length),
             trials,
             skills_used: skillsPaths.map(p => path.basename(p))
         };
@@ -148,18 +176,19 @@ export class EvalRunner {
         parallel: number,
         env?: Record<string, string>
     ): Promise<TrialResult[]> {
-        const results: TrialResult[] = new Array(numTrials);
+        const results: TrialResult[] = [];
         const queue = Array.from({ length: numTrials }, (_, i) => i);
 
         const workers = Array.from({ length: Math.min(parallel, numTrials) }, async () => {
-            while (queue.length > 0) {
+            while (queue.length > 0 && !this.isCancelled) {
                 const i = queue.shift()!;
-                results[i] = await this.runSingleTrial(agent, taskPath, skillsPaths, opts, i, numTrials, env);
+                const result = await this.runSingleTrial(agent, taskPath, skillsPaths, opts, i, numTrials, env);
+                results.push(result);
             }
         });
 
         await Promise.all(workers);
-        return results;
+        return results.sort((a, b) => a.trial_id - b.trial_id);
     }
 
     private async runSingleTrial(
@@ -174,13 +203,32 @@ export class EvalRunner {
         const sessionLog: LogEntry[] = [];
         let commandCount = 0;
         const startTime = Date.now();
+        const trialId = index + 1;
         
         const trialEnv = {
-            ...env,
-            ...opts.trialConfig?.env,
+            ...(env || {}),
+            ...(opts.trialConfig?.env || {}),
         };
 
-        const spinner = new Spinner(`${index + 1}/${total}`, 'setting up environment');
+        // Substitute {{trial}} and handle comma-separated key rotation
+        for (const [key, value] of Object.entries(trialEnv)) {
+            if (typeof value === 'string') {
+                // 1. Handle comma-separated rotation for API keys/tokens
+                if ((key.endsWith('_API_KEY') || key.endsWith('_TOKEN')) && value.includes(',')) {
+                    const keys = value.split(',').map(k => k.trim()).filter(k => k.length > 0);
+                    if (keys.length > 0) {
+                        trialEnv[key] = keys[index % keys.length];
+                    }
+                }
+
+                // 2. Substitute {{trial}} placeholder
+                if (trialEnv[key].includes('{{trial}}')) {
+                    trialEnv[key] = trialEnv[key].replace(/\{\{trial\}\}/g, trialId.toString());
+                }
+            }
+        }
+
+        const spinner = new Spinner(`${trialId}/${total}`, 'setting up environment');
         let workspace: string | undefined;
 
         try {
@@ -245,6 +293,17 @@ export class EvalRunner {
 
             for (let gIdx = 0; gIdx < opts.graders.length; gIdx++) {
                 const graderDef = opts.graders[gIdx];
+
+                if (opts.noSkills && graderDef.type === 'tool_usage') {
+                    graderResults.push({
+                        grader_type: 'tool_usage',
+                        score: 1.0,
+                        weight: graderDef.weight,
+                        details: 'Skipped because --no-skills was provided'
+                    });
+                    continue;
+                }
+
                 const grader = getGrader(graderDef.type);
                 spinner.update(`grading (${graderDef.type}${opts.graders.length > 1 ? ` ${gIdx + 1}/${opts.graders.length}` : ''})`);
                 spinner.render();
@@ -311,7 +370,8 @@ export class EvalRunner {
                 n_commands: commandCount,
                 input_tokens,
                 output_tokens,
-                session_log: sessionLog
+                session_log: sessionLog,
+                status: 'completed'
             };
         } catch (err: any) {
             const duration_ms = Date.now() - startTime;
@@ -345,7 +405,8 @@ export class EvalRunner {
                 n_commands: commandCount,
                 input_tokens: 0,
                 output_tokens: 0,
-                session_log: sessionLog
+                session_log: sessionLog,
+                status: 'failed'
             };
         } finally {
             if (workspace) {

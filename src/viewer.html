@@ -221,6 +221,49 @@
       color: var(--blue);
     }
 
+    .badge-yellow {
+      background: var(--yellow-bg);
+      color: var(--yellow);
+      border: 1px solid var(--yellow-border);
+    }
+
+    .delete-btn {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 0.3rem 0.6rem;
+      border-radius: var(--radius-sm);
+      font-size: 0.75rem;
+      transition: all var(--transition);
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+    }
+
+    .delete-btn:hover {
+      border-color: var(--red);
+      color: var(--red);
+      background: var(--red-bg);
+    }
+
+    .btn-danger {
+      background: var(--red-bg);
+      color: var(--red);
+      border: 1px solid var(--red-border);
+      padding: 0.5rem 1rem;
+      border-radius: var(--radius);
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 0.85rem;
+      transition: all var(--transition);
+    }
+
+    .btn-danger:hover {
+      background: var(--red);
+      color: #fff;
+    }
+
     /* ─── Detail View ───────────────────────────────────────── */
     .back-link {
       display: inline-flex;
@@ -237,8 +280,15 @@
       text-decoration: underline;
     }
 
-    .detail-header {
+    .detail-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
       margin-bottom: 1.5rem;
+    }
+
+    .detail-header {
+      margin-bottom: 0;
     }
 
     .detail-header h2 {
@@ -649,10 +699,12 @@
       const rows = reports.map(r => {
         const pr = (r.pass_rate * 100).toFixed(0);
         const isPass = r.pass_rate >= 0.5;
-        const ts = r.file.match(/\d{4}-\d{2}-\d{2}T[\d-]+/)?.[0]?.replace(/-(?=\d{2}(?:Z|$))/g, ':') || '';
+        const rawTs = r.timestamp || r.file.match(/\d{4}-\d{2}-\d{2}T[\d-]+/)?.[0]?.replace(/-(?=\d{2}(?:Z|$))/g, ':') || '';
+        const ts = rawTs ? new Date(rawTs).toLocaleString() : 'unknown';
+        const isPartial = r.status === 'partial';
 
-        return `<a class="report-row" onclick="navigate('detail','${esc(r.file)}')" href="javascript:void(0)">
-      <div>
+        return `<div class="report-row" onclick="navigate('detail','${esc(r.file)}')">
+      <div style="flex: 1">
         <div class="report-task">${esc(r.task)}</div>
         <div class="report-file">${ts}</div>
       </div>
@@ -660,8 +712,11 @@
       <div class="report-metric"><div class="val">${r.trials?.length || 0}</div><div class="lbl">Trials</div></div>
       <div class="report-metric"><div class="val">${r.pass_at_k != null ? (r.pass_at_k * 100).toFixed(0) + '%' : '—'}</div><div class="lbl">pass@k</div></div>
       <div class="report-metric"><div class="val">${r.pass_pow_k != null ? (r.pass_pow_k * 100).toFixed(0) + '%' : '—'}</div><div class="lbl">pass^k</div></div>
-      <div><span class="badge ${isPass ? 'badge-pass' : 'badge-fail'}">${isPass ? 'PASS' : 'FAIL'}</span></div>
-    </a>`;
+      <div style="display:flex; flex-direction:column; gap:0.4rem; align-items:flex-end; min-width:100px">
+        <span class="badge ${isPartial ? 'badge-yellow' : (isPass ? 'badge-pass' : 'badge-fail')}">${isPartial ? 'PARTIAL' : (isPass ? 'PASS' : 'FAIL')}</span>
+        <button class="delete-btn" onclick="deleteReport(event, '${esc(r.file)}')">🗑 Delete</button>
+      </div>
+    </div>`;
       }).join('');
 
       $('content').innerHTML = '<div class="reports-grid">' + rows + '</div>';
@@ -678,6 +733,7 @@
     function renderDetail(r, file) {
       const avgDur = r.trials.reduce((s, t) => s + (t.duration_ms || 0), 0) / r.trials.length;
       const totalTokens = r.trials.reduce((s, t) => s + (t.input_tokens || 0) + (t.output_tokens || 0), 0);
+      const isPartial = r.status === 'partial';
 
       const stats = `
     <div class="stat-pill"><div class="val">${(r.pass_rate * 100).toFixed(1)}%</div><div class="lbl">Pass Rate</div></div>
@@ -692,15 +748,20 @@
 
       $('content').innerHTML = `
     <a class="back-link" href="javascript:void(0)" onclick="navigate('list')">← All Reports</a>
-    <div class="detail-header">
-      <h2>${esc(r.task)}</h2>
-      <div class="detail-stats">${stats}</div>
+    <div class="detail-top">
+      <div class="detail-header">
+        <h2>${esc(r.task)} ${isPartial ? '<span class="badge badge-yellow">PARTIAL</span>' : ''}</h2>
+        <div class="report-file" style="margin-bottom:1rem">${r.timestamp ? new Date(r.timestamp).toLocaleString() : ''}</div>
+      </div>
+      <button class="btn-danger" onclick="deleteReport(null, '${esc(file)}')">Delete Report</button>
     </div>
+    <div class="detail-stats" style="margin-bottom:2rem">${stats}</div>
     ${trials}
   `;
     }
 
     function renderTrial(t, idx) {
+      const isCancelled = t.status === 'cancelled';
       const pass = t.reward >= 0.5;
       const dur = ((t.duration_ms || 0) / 1000).toFixed(1);
       const tokens = (t.input_tokens || 0) + (t.output_tokens || 0);
@@ -717,12 +778,17 @@
       const logId = 'log-' + idx;
       const logs = (t.session_log || []).map(e => renderLogEntry(e)).join('');
 
+      let statusBadge = `<span class="badge ${pass ? 'badge-pass' : 'badge-fail'}">${pass ? 'PASS' : 'FAIL'}</span>`;
+      if (isCancelled) {
+        statusBadge = `<span class="badge badge-yellow">CANCELLED</span>`;
+      }
+
       return `
     <div class="trial-card" id="trial-${idx}">
       <div class="trial-header" onclick="toggleTrial(${idx})">
         <span class="trial-number">Trial ${t.trial_id}</span>
-        <span class="trial-reward ${pass ? 'pass' : 'fail'}">${t.reward.toFixed(2)}</span>
-        <span class="badge ${pass ? 'badge-pass' : 'badge-fail'}">${pass ? 'PASS' : 'FAIL'}</span>
+        <span class="trial-reward ${isCancelled ? '' : (pass ? 'pass' : 'fail')}">${isCancelled ? '—' : t.reward.toFixed(2)}</span>
+        ${statusBadge}
         <span class="trial-meta">
           <span>${dur}s</span>
           <span>${t.n_commands || 0} cmds</span>
@@ -733,8 +799,10 @@
       <div class="trial-body">
         ${graders ? '<div class="graders-section">' + graders + '</div>' : ''}
         <div class="log-section">
+          ${isCancelled ? '<div style="padding:1rem; color:var(--text-muted)">Trial was cancelled.</div>' : `
           <button class="log-toggle" onclick="toggleLog('${logId}')">▶ Session Log (${t.session_log?.length || 0} entries)</button>
           <div class="log-entries" id="${logId}">${logs}</div>
+          `}
         </div>
       </div>
     </div>
@@ -787,6 +855,19 @@
     }
     function toggleLog(id) {
       document.getElementById(id).classList.toggle('open');
+    }
+
+    async function deleteReport(event, file) {
+      if (event) event.stopPropagation();
+      if (!confirm('Are you sure you want to delete this report?')) return;
+
+      const res = await fetch('/api/report?file=' + encodeURIComponent(file), { method: 'DELETE' });
+      if (res.ok) {
+        if (event) renderList();
+        else navigate('list');
+      } else {
+        alert('Failed to delete report');
+      }
     }
 
     // ─── Init ──────────────────────────────────────────────────

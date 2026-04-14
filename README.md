@@ -20,16 +20,19 @@ npm i -g @kmonty/skillgrade
 cd my-skill/
 GEMINI_API_KEY=your-key skillgrade init    # or ANTHROPIC_API_KEY / OPENAI_API_KEY
 # Use --force to overwrite an existing eval.yaml
+# Use --config=FILE to specify a custom filename
 ```
 
-Generates `eval.yaml` with AI-powered tasks and graders. Without an API key, creates a well-commented template.
+Generates `eval.yaml` (or your custom config) with AI-powered tasks and graders. Without an API key, creates a well-commented template.
 
-**2. Edit** — customize `eval.yaml` for your skill (see [eval.yaml Reference](#evalyaml-reference)).
+**2. Edit** — customize `eval.yaml` (or your custom config) for your skill (see [eval.yaml Reference](#evalyaml-reference)).
 
 **3. Run**:
 
 ```bash
 GEMINI_API_KEY=your-key skillgrade --smoke
+# Or with a custom config:
+GEMINI_API_KEY=your-key skillgrade --config=eval-baseline.yaml
 ```
 
 The agent is auto-detected from your API key: `GEMINI_API_KEY` → Gemini, `ANTHROPIC_API_KEY` → Claude, `OPENAI_API_KEY` → Codex. Override with `--agent=claude`.
@@ -39,6 +42,8 @@ The agent is auto-detected from your API key: `GEMINI_API_KEY` → Gemini, `ANTH
 ```bash
 skillgrade preview          # CLI report
 skillgrade preview browser  # web UI → http://localhost:3847
+# Or with a custom output directory:
+skillgrade preview --output=reports
 ```
 
 Reports are saved to `$TMPDIR/skillgrade/<skill-name>/results/`. Override with `--output=DIR`.
@@ -55,6 +60,7 @@ Reports are saved to `$TMPDIR/skillgrade/<skill-name>/results/`. Override with `
 
 | Flag | Description |
 |------|-------------|
+| `--config=FILE` | Custom eval configuration file (default: `eval.yaml`) |
 | `--eval=NAME[,NAME]` | Run specific evals by name (comma-separated) |
 | `--grader=TYPE` | Run only graders of a type (`deterministic` or `llm_rubric`) |
 | `--trials=N` | Override trial count |
@@ -66,6 +72,28 @@ Reports are saved to `$TMPDIR/skillgrade/<skill-name>/results/`. Override with `
 | `--ci` | CI mode: exit non-zero if below threshold |
 | `--threshold=0.8` | Pass rate threshold for CI mode |
 | `--preview` | Show CLI results after running |
+| `--no-skills` | Run without any agent skills (for baseline testing) |
+
+## Parallelism & Multiple API Keys
+
+Scale your evaluations by running trials concurrently:
+
+```bash
+# Run 10 trials, 5 at a time
+GEMINI_API_KEY=your-key skillgrade --trials=10 --parallel=5
+```
+
+### Bypassing Rate Limits (Multi-Key Rotation)
+
+When running high-concurrency evals, you might hit LLM rate limits. SkillGrade can automatically rotate through multiple API keys:
+
+```bash
+# Pass multiple keys separated by commas
+export GEMINI_API_KEY="key_alpha, key_beta, key_gamma"
+skillgrade --parallel=3 --reliable
+```
+
+SkillGrade detects the commas and distributes the keys round-robin across trials (Trial 1 gets `key_alpha`, Trial 2 gets `key_beta`, etc.). This works for any environment variable ending in `_API_KEY` or `_TOKEN`.
 
 ## eval.yaml Reference
 
@@ -321,13 +349,24 @@ Variables are merged in the following order (highest priority wins):
 4. **`.env` File**: Variables defined in `.env` file.
 5. **System Environment**: Variables set in your shell. (Note: Only specific API keys like `GEMINI_API_KEY` are automatically passed through to the execution environment by default, unless using the `local` provider where all system variables are visible).
 
+#### Dynamic Variables with `{{trial}}`
+
+You can use the `{{trial}}` placeholder in any environment variable value. SkillGrade will replace it with the current trial ID (starting from 1). This is useful for creating unique resources or ports for each trial.
+
+```yaml
+defaults:
+  env:
+    DB_NAME: "test_db_{{trial}}"
+    PORT: "80{{trial}}" # Trial 1 gets 801, Trial 2 gets 802...
+```
+
 #### Example
 
 ```yaml
 defaults:
   env:
     GLOBAL_VAR: "global_value"
-
+```
 tasks:
   - name: test-task
     env:

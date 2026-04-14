@@ -20,7 +20,7 @@ beforeEach(() => {
 describe('loadEvalConfig', () => {
   it('throws when eval.yaml is missing', async () => {
     mockPathExists.mockResolvedValue(false as any);
-    await expect(loadEvalConfig('/test')).rejects.toThrow('No eval.yaml found');
+    await expect(loadEvalConfig('/test')).rejects.toThrow('No eval configuration found');
   });
 
   it('throws when YAML is not an object', async () => {
@@ -127,6 +127,25 @@ tasks:
     expect(config.tasks[0].graders).toHaveLength(2);
     expect(config.tasks[0].graders[0].weight).toBe(0.7);
     expect(config.tasks[0].graders[1].type).toBe('llm_rubric');
+  });
+
+  it('loads a custom config file correctly', async () => {
+    mockPathExists.mockImplementation(async (p) => typeof p === 'string' && p.endsWith('eval-baseline.yaml'));
+    const yaml = `version: "1"
+tasks:
+  - name: baseline-task
+    instruction: "do baseline"
+    graders:
+      - type: deterministic
+        run: "echo ok"
+`;
+    mockReadFile.mockImplementation(async (p) => {
+        if (typeof p === 'string' && p.endsWith('eval-baseline.yaml')) return yaml;
+        return '' as any;
+    });
+
+    const config = await loadEvalConfig('/test', 'eval-baseline.yaml');
+    expect(config.tasks[0].name).toBe('baseline-task');
   });
 
   it('parses trialConfig correctly', async () => {

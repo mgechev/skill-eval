@@ -5,34 +5,42 @@ import { fmt, header } from '../utils/cli';
 // ─── Main ──────────────────────────────────────────────────
 export async function runCliPreview(resultsDir: string) {
     const resolved = path.resolve(resultsDir);
-    const files = (await fs.readdir(resolved))
-        .filter(f => f.endsWith('.json'))
-        .reverse();
+    const files = (await fs.readdir(resolved)).filter(f => f.endsWith('.json'));
+    const reports = [];
+    for (const file of files) {
+        try {
+            const report = await fs.readJSON(path.join(resolved, file));
+            reports.push({ file, ...report });
+        } catch { /* skip malformed */ }
+    }
 
-    if (!files.length) {
+    if (!reports.length) {
         console.log(`\n  ${fmt.dim('No reports found in')} ${resolved}\n`);
         return;
     }
 
-    console.log(`\n${fmt.bold('skillgrade preview')}  ${fmt.dim(`${files.length} reports from ${resolved}`)}\n`);
+    // Sort by timestamp desc
+    reports.sort((a, b) => new Date(b.timestamp || 0).getTime() - new Date(a.timestamp || 0).getTime());
 
-    for (const file of files) {
-        let report: any;
-        try { report = await fs.readJSON(path.join(resolved, file)); }
-        catch { continue; }
+    console.log(`\n${fmt.bold('skillgrade preview')}  ${fmt.dim(`${reports.length} reports from ${resolved}`)}\n`);
 
+    for (const report of reports) {
         const passRate = report.pass_rate ?? 0;
         const isPass = passRate >= 0.5;
         const trials = report.trials || [];
-        const avgDur = trials.reduce((s: number, t: any) => s + (t.duration_ms || 0), 0) / (trials.length || 1);
-        const totalTokens = trials.reduce((s: number, t: any) => s + (t.input_tokens || 0) + (t.output_tokens || 0), 0);
+        const completedTrials = trials.filter((t: any) => t.status !== 'cancelled');
+        const nComp = completedTrials.length || 1;
+        const avgDur = completedTrials.reduce((s: number, t: any) => s + (t.duration_ms || 0), 0) / nComp;
+        const totalTokens = completedTrials.reduce((s: number, t: any) => s + (t.input_tokens || 0) + (t.output_tokens || 0), 0);
+        const isPartial = report.status === 'partial';
 
         // ── Report header
-        const status = isPass ? fmt.pass('PASS') : fmt.fail('FAIL');
+        let status = isPass ? fmt.pass('PASS') : fmt.fail('FAIL');
+        if (isPartial) status = fmt.dim('PARTIAL');
         header(`${status}  ${report.task}`);
 
-        // Timestamp from filename
-        const ts = file.match(/\d{4}-\d{2}-\d{2}T[\d-]+/)?.[0]?.replace(/-(\d{2})-(\d{2})-/g, ':$1:$2:') || '';
+        // Timestamp
+        const ts = report.timestamp ? new Date(report.timestamp).toLocaleString() : '';
         if (ts) console.log(`    ${fmt.dim(ts)}`);
         console.log();
 
@@ -53,11 +61,14 @@ export async function runCliPreview(resultsDir: string) {
 
         // ── Trials
         for (const trial of trials) {
+            const isCancelled = trial.status === 'cancelled';
             const tp = trial.reward >= 0.5;
-            const trialStatus = tp ? fmt.pass('PASS') : fmt.fail('FAIL');
-            const reward = fmt.bold(trial.reward.toFixed(2));
-            const dur = `${((trial.duration_ms || 0) / 1000).toFixed(1)}s`;
-            const cmds = `${trial.n_commands || 0} cmds`;
+            let trialStatus = tp ? fmt.pass('PASS') : fmt.fail('FAIL');
+            if (isCancelled) trialStatus = fmt.dim('CANCELLED');
+
+            const reward = isCancelled ? fmt.dim(' —.—— ') : fmt.bold(trial.reward.toFixed(2));
+            const dur = isCancelled ? fmt.dim(' —.——s ') : `${((trial.duration_ms || 0) / 1000).toFixed(1)}s`;
+            const cmds = isCancelled ? fmt.dim(' — cmds ') : `${trial.n_commands || 0} cmds`;
             const graders = (trial.grader_results || []).map((g: any) => {
                 const scoreStr = g.score.toFixed(1);
                 const colored = g.score >= 0.5 ? fmt.green(scoreStr) : fmt.red(scoreStr);
@@ -71,7 +82,7 @@ export async function runCliPreview(resultsDir: string) {
         // ── LLM grader details
         const hasLlm = trials.some((t: any) => t.grader_results?.some((g: any) => g.grader_type === 'llm_rubric'));
         if (hasLlm) {
-            for (const trial of trials) {
+            for (const trial of trials.filter((t: any) => t.status !== 'cancelled')) {
                 const llmGraders = (trial.grader_results || []).filter((g: any) => g.grader_type === 'llm_rubric');
                 for (const g of llmGraders) {
                     const scoreStr = g.score >= 0.5 ? fmt.green(g.score.toFixed(2)) : fmt.red(g.score.toFixed(2));
@@ -81,7 +92,7 @@ export async function runCliPreview(resultsDir: string) {
             console.log();
         }
 
-        console.log(`    ${fmt.dim(file)}`);
+        console.log(`    ${fmt.dim(report.file)}`);
         console.log();
     }
 }

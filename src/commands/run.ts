@@ -18,6 +18,7 @@ import { parseEnvFile } from '../utils/env';
 import { fmt, header, kv, trialRow, resultsSummary, validationResult } from '../utils/cli';
 
 interface RunOptions {
+    config?: string;     // custom eval configuration file (e.g. eval-baseline.yaml)
     eval?: string;       // run specific eval(s) by name (comma-separated)
     trials?: number;     // override trial count
     parallel?: number;
@@ -30,6 +31,7 @@ interface RunOptions {
     output?: string;     // output directory for reports and temp files
     grader?: string;     // filter graders by type (deterministic|llm_rubric)
     noRedact?: boolean;
+    noSkills?: boolean;
 }
 
 async function loadEnvFile(filePath: string): Promise<Record<string, string>> {
@@ -42,8 +44,8 @@ async function loadEnvFile(filePath: string): Promise<Record<string, string>> {
 export async function runEvals(dir: string, opts: RunOptions) {
     console.log(`\n${fmt.bold('skillgrade')}\n`);
 
-    // Load eval.yaml
-    const config = await loadEvalConfig(dir);
+    // Load eval configuration
+    const config = await loadEvalConfig(dir, opts.config);
 
     // Load environment variables
     const rootEnv = await loadEnvFile(path.join(dir, '.env'));
@@ -58,7 +60,9 @@ export async function runEvals(dir: string, opts: RunOptions) {
 
     // Detect skills
     let skillsPaths: string[] = [];
-    if (config.skill) {
+    if (opts.noSkills) {
+        kv('skills', fmt.dim('none (disabled via --no-skills)'));
+    } else if (config.skill) {
         let skillDir = path.resolve(dir, config.skill);
         const stat = await fs.stat(skillDir).catch(() => null);
         if (stat?.isFile()) {
@@ -156,6 +160,19 @@ export async function runEvals(dir: string, opts: RunOptions) {
 
         const runner = new EvalRunner(provider, resultsDir, opts.noRedact);
 
+        // Handle SIGINT to stop gracefully
+        let sigintCount = 0;
+        const onSigint = () => {
+            sigintCount++;
+            if (sigintCount === 1) {
+                console.log(`\n  ${fmt.dim('stopping trials... (press Ctrl+C again to force exit)')}\n`);
+                runner.stop();
+            } else {
+                process.exit(1);
+            }
+        };
+        process.on('SIGINT', onSigint);
+
         if (opts.validate) {
             // Validation mode
             if (!resolved.solution) {
@@ -172,7 +189,7 @@ export async function runEvals(dir: string, opts: RunOptions) {
                 }
             } as BaseAgent;
 
-            const report = await runner.runEval(solveAgent, tmpTaskDir, skillsPaths, evalOpts, 1, mergedEnv);
+            const report = await runner.runEval(solveAgent, tmpTaskDir, skillsPaths, evalOpts, 1, mergedEnv, 1, opts.noSkills);
             const passed = report.trials[0].reward >= 0.5;
 
             validationResult(passed, report.trials[0].reward, report.trials[0].grader_results.map(gr => ({
@@ -191,7 +208,7 @@ export async function runEvals(dir: string, opts: RunOptions) {
             console.log();
 
             try {
-                const report = await runner.runEval(agent, tmpTaskDir, skillsPaths, evalOpts, trials, mergedEnv, parallel);
+                const report = await runner.runEval(agent, tmpTaskDir, skillsPaths, evalOpts, trials, mergedEnv, parallel, opts.noSkills);
                 reports.push(report);
 
                 // LLM grader reasoning (condensed)
@@ -209,6 +226,9 @@ export async function runEvals(dir: string, opts: RunOptions) {
             } catch (err) {
                 console.error(`\n  ${fmt.fail('error')}  evaluation failed: ${err}\n`);
                 allPassed = false;
+            } finally {
+                process.off('SIGINT', onSigint);
+                if (sigintCount > 0) break;
             }
         }
 
@@ -299,12 +319,14 @@ export async function prepareTempTaskDir(resolved: ResolvedTask, baseDir: string
     let dockerfileContent = `FROM ${resolved.docker.base}\n\nWORKDIR /workspace\n\n`;
 
     // Install agent CLI
-    if (resolved.agent === 'gemini') {
-        dockerfileContent += `RUN npm install -g @google/gemini-cli\n\n`;
-    } else if (resolved.agent === 'claude') {
-        dockerfileContent += `RUN npm install -g @anthropic-ai/claude-code\n\n`;
-    } else if (resolved.agent === 'codex') {
-        dockerfileContent += `RUN npm install -g @openai/codex\n\n`;
+    if (!resolved.docker.agent_installed) {
+        if (resolved.agent === 'gemini') {
+            dockerfileContent += `RUN npm install -g @google/gemini-cli\n\n`;
+        } else if (resolved.agent === 'claude') {
+            dockerfileContent += `RUN npm install -g @anthropic-ai/claude-code\n\n`;
+        } else if (resolved.agent === 'codex') {
+            dockerfileContent += `RUN npm install -g @openai/codex\n\n`;
+        }
     }
 
     // Docker setup commands

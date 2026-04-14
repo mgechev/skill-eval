@@ -1,15 +1,15 @@
 import { ExpectedTool } from '../types';
 
 /**
- * eval.yaml configuration types.
+ * Eval configuration types.
  *
- * These types define the schema for the eval.yaml file that developers
- * create to define evaluation tasks for their skills.
+ * These types define the schema for the configuration file (e.g. eval.yaml)
+ * that developers create to define evaluation tasks for their skills.
  */
 
 /** Workspace file mapping: copy a local file into the container */
 export interface WorkspaceMapping {
-    src?: string;       // relative to eval.yaml
+    src?: string;       // relative to configuration file
     content?: string;   // inline content
     dest: string;       // path in container (relative = in /workspace, absolute = absolute)
     chmod?: string;     // e.g. "+x"
@@ -30,6 +30,7 @@ export interface EvalGraderConfig {
 export interface DockerConfig {
     base: string;       // base Docker image
     setup?: string;     // extra RUN commands for Dockerfile
+    agent_installed?: boolean; // Skip agent installation in Dockerfile (e.g. if already in base image)
 }
 
 /** Environment resource limits */
@@ -81,7 +82,7 @@ export interface EvalDefaults {
     workspace?: WorkspaceMapping[];
 }
 
-/** Top-level eval.yaml */
+/** Top-level configuration file (e.g. eval.yaml) */
 export interface EvalConfig {
     version: string;
     skill?: string;         // optional path to SKILL.md (defaults to auto-detection)

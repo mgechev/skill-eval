@@ -26,6 +26,7 @@ const DEFAULT_CONFIG: EvalDefaults = {
     threshold: 0.8,
     docker: {
         base: 'node:20-slim',
+        agent_installed: false,
     },
     environment: {
         cpus: 2,
@@ -34,12 +35,12 @@ const DEFAULT_CONFIG: EvalDefaults = {
 };
 
 /**
- * Load and parse eval.yaml from a directory.
+ * Load and parse an eval configuration from a directory or specific file.
  */
-export async function loadEvalConfig(dir: string): Promise<EvalConfig> {
-    const yamlPath = path.join(dir, 'eval.yaml');
+export async function loadEvalConfig(dir: string, filename = 'eval.yaml'): Promise<EvalConfig> {
+    const yamlPath = path.isAbsolute(filename) ? filename : path.join(dir, filename);
     if (!await fs.pathExists(yamlPath)) {
-        throw new Error(`No eval.yaml found in ${dir}`);
+        throw new Error(`No eval configuration found at ${yamlPath}`);
     }
 
     // Dynamically import js-yaml
@@ -86,6 +87,7 @@ function validateTrialConfig(tc: any, context: string) {
     }
 }
 
+<<<<<<< Updated upstream
 function validateWorkspaceMappings(workspace: any, context: string): WorkspaceMapping[] {
     if (!workspace) return [];
     if (!Array.isArray(workspace)) {
@@ -107,6 +109,12 @@ function validateWorkspaceMappings(workspace: any, context: string): WorkspaceMa
         }
         return { src: w.src, content: w.content, dest: w.dest, chmod: w.chmod };
     });
+=======
+function validateEnv(env: any, context: string) {
+    if (env && (typeof env !== 'object' || Array.isArray(env))) {
+        throw new Error(`${context} must be a YAML object (key: value pairs)`);
+    }
+>>>>>>> Stashed changes
 }
 
 /**
@@ -134,8 +142,12 @@ function validateConfig(raw: any): EvalConfig {
         workspace: validateWorkspaceMappings(raw.defaults?.workspace, 'defaults'),
     };
 
+    validateEnv(defaults.env, 'defaults.env');
     validateMounts(defaults.environment.mounts, 'defaults.environment.mounts');
     validateTrialConfig(defaults.trialConfig, 'defaults.trialConfig');
+    if (defaults.trialConfig?.env) {
+        validateEnv(defaults.trialConfig.env, 'defaults.trialConfig.env');
+    }
 
     if (!raw.tasks || !Array.isArray(raw.tasks) || raw.tasks.length === 0) {
         throw new Error('eval.yaml must have at least one task in the "tasks" array');
@@ -148,11 +160,15 @@ function validateConfig(raw: any): EvalConfig {
             throw new Error(`Task "${t.name}" must have at least one grader`);
         }
 
+        validateEnv(t.env, `Task "${t.name}" env`);
         if (t.environment) {
             validateMounts(t.environment.mounts, `Task "${t.name}" environment.mounts`);
         }
 
         validateTrialConfig(t.trialConfig, `Task "${t.name}" trialConfig`);
+        if (t.trialConfig?.env) {
+            validateEnv(t.trialConfig.env, `Task "${t.name}" trialConfig.env`);
+        }
 
         if (t.agentWorkingDir && typeof t.agentWorkingDir !== 'string') {
             throw new Error(`Task "${t.name}" agentWorkingDir must be a string`);

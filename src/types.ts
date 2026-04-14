@@ -47,10 +47,13 @@ export interface TrialResult {
     input_tokens: number;     // estimated from instruction length
     output_tokens: number;    // estimated from agent output
     session_log: LogEntry[];
+    status?: 'completed' | 'cancelled' | 'failed';
 }
 
 export interface EvalReport {
     task: string;
+    timestamp: string;
+    status: 'completed' | 'partial';
     pass_rate: number;
     pass_at_k: number;        // probability of ≥1 success in k trials
     pass_pow_k: number;       // probability of all k trials succeeding

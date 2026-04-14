@@ -374,4 +374,43 @@ describe('EvalRunner', () => {
     expect(setupLog?.command).toBe('echo setup');
   });
 
+  it('rotates comma-separated API keys across trials', async () => {
+    const provider = makeMockProvider();
+    const agent = makeMockAgent();
+    const opts = makeEvalOpts();
+
+    const gradersModule = await import('../src/graders/index');
+    vi.spyOn(gradersModule, 'getGrader').mockReturnValue({
+      grade: vi.fn().mockResolvedValue({
+        grader_type: 'deterministic', score: 1.0, weight: 1.0, details: 'ok',
+      }),
+    });
+
+    const runner = new EvalRunner(provider);
+    
+    // 3 trials, 2 keys -> Should be key1, key2, key1
+    const env = { GEMINI_API_KEY: 'key1, key2' };
+    await runner.runEval(agent, '/task', [], opts, 3, env);
+
+    expect(provider.setup).toHaveBeenCalledTimes(3);
+    
+    // Check Trial 1
+    expect(provider.setup).toHaveBeenNthCalledWith(1, 
+      expect.anything(), expect.anything(), expect.anything(), 
+      expect.objectContaining({ GEMINI_API_KEY: 'key1' })
+    );
+
+    // Check Trial 2
+    expect(provider.setup).toHaveBeenNthCalledWith(2, 
+      expect.anything(), expect.anything(), expect.anything(), 
+      expect.objectContaining({ GEMINI_API_KEY: 'key2' })
+    );
+
+    // Check Trial 3 (round-robin)
+    expect(provider.setup).toHaveBeenNthCalledWith(3, 
+      expect.anything(), expect.anything(), expect.anything(), 
+      expect.objectContaining({ GEMINI_API_KEY: 'key1' })
+    );
+  });
+
 });
