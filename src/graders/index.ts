@@ -2,6 +2,7 @@ import { GraderConfig, GraderResult, EnvironmentProvider } from '../types';
 import * as fs from 'fs-extra';
 import * as path from 'path';
 import { ToolUsageGrader } from './tool_usage';
+import { GoogleGenerativeAI, SchemaType, Schema } from "@google/generative-ai";
 
 export interface Grader {
     grade(
@@ -171,24 +172,47 @@ Respond with ONLY a JSON object: {"score": <number>, "reasoning": "<brief explan
     }
 
     private async callGemini(prompt: string, apiKey: string, config: GraderConfig): Promise<GraderResult> {
-        const model = config.model || 'gemini-3-flash-preview';
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+        const genAI = new GoogleGenerativeAI(apiKey);
+            
+        // Define the exact shape of the JSON
+        const schema: Schema = {
+            type: SchemaType.OBJECT,
+            properties: {
+                score: { type: SchemaType.NUMBER },
+                reasoning: { type: SchemaType.STRING },
+            },
+            required: ["score", "reasoning"],
+        };
+
+        const model = genAI.getGenerativeModel({
+            model: config.model || 'gemini-3-flash-preview',
+            generationConfig: {
+                temperature: 0,
+                responseMimeType: "application/json",
+                responseSchema: schema,
+            },
+        });
 
         try {
-            const response = await fetch(url, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    contents: [{ parts: [{ text: prompt }] }],
-                    generationConfig: { temperature: 0 }
-                })
-            });
-
-            const data = await response.json() as any;
-            const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-            return this.parseResponse(text, config);
+            const result = await model.generateContent(prompt);
+            
+            // Because of the schema, result.response.text() is guaranteed 
+            // to be a clean JSON string. We can just parse it directly.
+            const parsed = JSON.parse(result.response.text());
+            
+            return {
+                grader_type: 'llm_rubric',
+                score: parsed.score,
+                weight: config.weight,
+                details: parsed.reasoning
+            };
         } catch (e) {
-            return { grader_type: 'llm_rubric', score: 0, weight: config.weight, details: `Gemini API error: ${e}` };
+            return { 
+                grader_type: 'llm_rubric', 
+                score: 0, 
+                weight: config.weight, 
+                details: `Gemini API error: ${e}` 
+            };
         }
     }
 
@@ -217,6 +241,7 @@ Respond with ONLY a JSON object: {"score": <number>, "reasoning": "<brief explan
         }
     }
 
+    // we'll no longer use this one to convert data to json
     private parseResponse(text: string, config: GraderConfig): GraderResult {
         try {
             // Strip markdown code fences if present
