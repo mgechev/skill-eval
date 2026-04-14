@@ -1,5 +1,6 @@
 import * as fs from 'fs-extra';
 import * as path from 'path';
+import * as crypto from 'crypto';
 import {
     BaseAgent, EnvironmentProvider,
     LogEntry, TrialResult, EvalReport, GraderResult
@@ -97,6 +98,8 @@ export class EvalRunner {
         const taskName = path.basename(taskPath);
         opts.noSkills = noSkills;
         const startTime = this.timestamp();
+        const evalUuid = crypto.randomUUID();
+        console.log(`\n${fmt.bold('Eval UUID:')} ${evalUuid}`);
 
         // One-time image build (if provider supports it)
         if (this.provider.prepare) {
@@ -114,11 +117,11 @@ export class EvalRunner {
 
         try {
             if (parallel > 1 && numTrials > 1) {
-                trials = await this.runTrialsParallel(agent, taskPath, skillsPaths, opts, numTrials, parallel, env);
+                trials = await this.runTrialsParallel(agent, taskPath, skillsPaths, opts, numTrials, parallel, evalUuid, env);
             } else {
                 for (let i = 0; i < numTrials; i++) {
                     if (this.isCancelled) break;
-                    const result = await this.runSingleTrial(agent, taskPath, skillsPaths, opts, i, numTrials, env);
+                    const result = await this.runSingleTrial(agent, taskPath, skillsPaths, opts, i, numTrials, evalUuid, env);
                     trials.push(result);
                 }
             }
@@ -156,7 +159,8 @@ export class EvalRunner {
             pass_at_k: calculatePassAtK(numTrials, successes, completedTrials.length),
             pass_pow_k: calculatePassPowK(numTrials, successes, completedTrials.length),
             trials,
-            skills_used: skillsPaths.map(p => path.basename(p))
+            skills_used: skillsPaths.map(p => path.basename(p)),
+            eval_uuid: evalUuid
         };
 
         if (this.logDir) {
@@ -174,6 +178,7 @@ export class EvalRunner {
         opts: EvalRunOptions,
         numTrials: number,
         parallel: number,
+        evalUuid: string,
         env?: Record<string, string>
     ): Promise<TrialResult[]> {
         const results: TrialResult[] = [];
@@ -182,7 +187,7 @@ export class EvalRunner {
         const workers = Array.from({ length: Math.min(parallel, numTrials) }, async () => {
             while (queue.length > 0 && !this.isCancelled) {
                 const i = queue.shift()!;
-                const result = await this.runSingleTrial(agent, taskPath, skillsPaths, opts, i, numTrials, env);
+                const result = await this.runSingleTrial(agent, taskPath, skillsPaths, opts, i, numTrials, evalUuid, env);
                 results.push(result);
             }
         });
@@ -198,6 +203,7 @@ export class EvalRunner {
         opts: EvalRunOptions,
         index: number,
         total: number,
+        evalUuid: string,
         env?: Record<string, string>
     ): Promise<TrialResult> {
         const sessionLog: LogEntry[] = [];
@@ -205,9 +211,11 @@ export class EvalRunner {
         const startTime = Date.now();
         const trialId = index + 1;
         
-        const trialEnv = {
+        const trialEnv: Record<string, string> = {
             ...(env || {}),
             ...(opts.trialConfig?.env || {}),
+            _EVAL_TRIAL: trialId.toString(),
+            _EVAL_UUID: evalUuid,
         };
 
         // Substitute {{trial}} and handle comma-separated key rotation

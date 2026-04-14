@@ -59,6 +59,7 @@ export interface EvalReport {
     pass_pow_k: number;       // probability of all k trials succeeding
     trials: TrialResult[];
     skills_used: string[];
+    eval_uuid: string;
 }
 
 export abstract class BaseAgent {

@@ -360,6 +360,15 @@ defaults:
     PORT: "80{{trial}}" # Trial 1 gets 801, Trial 2 gets 802...
 ```
 
+#### Auto-Injected Variables
+
+SkillGrade automatically injects the following environment variables into every trial environment:
+
+- `_EVAL_TRIAL`: The current trial ID (starting from 1), equivalent to the resolved value of `{{trial}}`.
+- `_EVAL_UUID`: A unique UUID for the evaluation run, consistent across all trials in the same run.
+
+These are useful for tracking or naming resources without explicit configuration in `eval.yaml`.
+
 #### Example
 
 ```yaml

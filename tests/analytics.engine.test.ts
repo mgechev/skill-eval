@@ -52,6 +52,9 @@ describe('AnalyticsEngine.aggregate', () => {
         },
       ],
       skills_used: skillsUsed,
+      eval_uuid: 'mock-uuid',
+      timestamp: new Date().toISOString(),
+      status: 'completed',
     };
   }
 

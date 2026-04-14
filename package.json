@@ -3,7 +3,7 @@
   "publishConfig": {
     "access": "public"
   },
-  "version": "0.1.8",
+  "version": "0.1.9",
   "description": "The easiest way to evaluate your Agent Skills — test that AI agents correctly discover and use your skills",
   "main": "dist/skillgrade.js",
   "types": "dist/skillgrade.d.ts",

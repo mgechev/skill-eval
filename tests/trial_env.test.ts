@@ -103,11 +103,46 @@ describe('Trial Environment Substitution', () => {
 
     expect(provider.setup).toHaveBeenCalledTimes(5);
     
-    const calledEnvs = provider.setup['mock'].calls.map(call => call[3]);
+    const calledEnvs = vi.mocked(provider.setup).mock.calls.map((call: any) => call[3]);
     
     for (let i = 1; i <= 5; i++) {
-      const found = calledEnvs.some(e => e.ARTIFACT_REGISTRY === `yesh-evals-${i}`);
+      const found = calledEnvs.some((e: any) => e.ARTIFACT_REGISTRY === `yesh-evals-${i}`);
       expect(found, `Trial ${i} env was not found in parallel execution`).toBe(true);
     }
+  });
+
+  it('injects _EVAL_TRIAL and _EVAL_UUID automatically', async () => {
+    const provider = makeMockProvider();
+    const agent = makeMockAgent();
+    const opts = makeEvalOpts();
+    
+    const runner = new EvalRunner(provider);
+    
+    const gradersModule = await import('../src/graders/index');
+    vi.spyOn(gradersModule, 'getGrader').mockReturnValue({
+      grade: vi.fn().mockResolvedValue({
+        grader_type: 'deterministic', score: 1.0, weight: 1.0, details: 'ok',
+      }),
+    });
+
+    await runner.runEval(agent, '/task', [], opts, 2);
+
+    expect(provider.setup).toHaveBeenCalledTimes(2);
+    
+    const calledEnvs = vi.mocked(provider.setup).mock.calls.map((call: any) => call[3]);
+    
+    // Check trial 1
+    expect(calledEnvs[0]._EVAL_TRIAL).toBe('1');
+    expect(calledEnvs[0]._EVAL_UUID).toBeDefined();
+    
+    // Check trial 2
+    expect(calledEnvs[1]._EVAL_TRIAL).toBe('2');
+    expect(calledEnvs[1]._EVAL_UUID).toBeDefined();
+    
+    // Check that UUID is the same for both trials
+    expect(calledEnvs[0]._EVAL_UUID).toBe(calledEnvs[1]._EVAL_UUID);
+    
+    // Check that UUID is a valid UUID
+    expect(calledEnvs[0]._EVAL_UUID).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
   });
 });
