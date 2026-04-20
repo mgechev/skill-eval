@@ -217,6 +217,7 @@ describe('resolveTask', () => {
     timeout: 300,
     threshold: 0.8,
     docker: { base: 'node:20-slim' },
+    environment: { cpus: 2, memory_mb: 2048 },
   };
 
   it('applies defaults when task has no overrides', async () => {

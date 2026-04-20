@@ -41,6 +41,28 @@ export interface TrialResult {
     input_tokens: number;     // estimated from instruction length
     output_tokens: number;    // estimated from agent output
     session_log: LogEntry[];
+    // Skill trigger tracking
+    skills_triggered?: SkillTriggerInfo[];  // List of triggered skills
+    tools_used?: string[];                  // List of tools used
+}
+
+/** Skill trigger information during agent execution */
+export interface SkillTriggerInfo {
+    name: string;               // Skill name
+    source: 'tool_use' | 'file_read' | 'init_list';  // Detection source
+    timestamp?: string;         // Trigger timestamp
+    details?: string;           // Additional details (e.g., file path read)
+}
+
+/** Structured agent execution result */
+export interface AgentResult {
+    output: string;                         // Final text output from agent
+    raw_output?: string;                    // Raw CLI output
+    skills_triggered: SkillTriggerInfo[];   // List of triggered skills
+    tools_used: string[];                   // List of tools used (e.g., Read, Bash, Edit)
+    num_turns?: number;                     // Number of API interaction turns
+    duration_api_ms?: number;               // API duration in milliseconds
+    cost_usd?: number;                      // Cost in USD
 }
 
 export interface EvalReport {
@@ -56,8 +78,8 @@ export abstract class BaseAgent {
     abstract run(
         instruction: string,
         workspacePath: string,
-        runCommand: (cmd: string) => Promise<CommandResult>
-    ): Promise<string>;
+        runCommand: (cmd: string, env?: Record<string, string>) => Promise<CommandResult>
+    ): Promise<string | AgentResult>;
 }
 
 /** Options passed to environment providers for setup */

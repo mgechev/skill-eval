@@ -4,6 +4,7 @@ import * as os from 'os';
 import * as fsReal from 'fs';
 import * as fsExtra from 'fs-extra';
 import { LocalProvider } from '../src/providers/local';
+import { EnvironmentSetupOpts } from '../src/types';
 
 describe('LocalProvider', () => {
   const provider = new LocalProvider();
@@ -24,15 +25,12 @@ describe('LocalProvider', () => {
       await fsExtra.writeFile(path.join(taskDir, 'task.toml'), 'version = "1"');
       tempDirs.push(taskDir);
 
-      const taskConfig = {
-        version: '1',
-        metadata: { author_name: '', author_email: '', difficulty: 'medium', category: '', tags: [] },
-        graders: [],
-        agent: { timeout_sec: 300 },
-        environment: { build_timeout_sec: 180, cpus: 2, memory_mb: 2048, storage_mb: 500 },
+      const setupOpts: EnvironmentSetupOpts = {
+        timeoutSec: 300,
+        environment: { cpus: 2, memory_mb: 2048 },
       };
 
-      const workspace = await provider.setup(taskDir, [], taskConfig);
+      const workspace = await provider.setup(taskDir, [], setupOpts);
       tempDirs.push(workspace);
 
       expect(workspace).toContain('skillgrade-');
@@ -48,15 +46,12 @@ describe('LocalProvider', () => {
       await fsExtra.writeFile(path.join(skillDir, 'SKILL.md'), '# Test Skill');
       tempDirs.push(taskDir, skillDir);
 
-      const taskConfig = {
-        version: '1',
-        metadata: { author_name: '', author_email: '', difficulty: 'medium', category: '', tags: [] },
-        graders: [],
-        agent: { timeout_sec: 300 },
-        environment: { build_timeout_sec: 180, cpus: 2, memory_mb: 2048, storage_mb: 500 },
+      const setupOpts: EnvironmentSetupOpts = {
+        timeoutSec: 300,
+        environment: { cpus: 2, memory_mb: 2048 },
       };
 
-      const workspace = await provider.setup(taskDir, [skillDir], taskConfig);
+      const workspace = await provider.setup(taskDir, [skillDir], setupOpts);
       tempDirs.push(workspace);
 
       const skillName = path.basename(skillDir);
