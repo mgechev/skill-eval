@@ -1,10 +1,18 @@
 import { BaseAgent } from '../src/types';
 import { LocalProvider } from '../src/providers/local';
 import { DockerProvider } from '../src/providers/docker';
-import { EvalRunner, loadTaskConfig } from '../src/evalRunner';
+import { EvalRunner, EvalRunOptions } from '../src/evalRunner';
 import * as path from 'path';
 import { execSync } from 'child_process';
 import * as fs from 'fs-extra';
+
+// Default eval options for testing
+const DEFAULT_EVAL_OPTS: EvalRunOptions = {
+    instruction: 'Fix linting issues',
+    graders: [{ type: 'deterministic', weight: 1.0 }],
+    timeoutSec: 300,
+    environment: { cpus: 2, memory_mb: 2048 },
+};
 
 async function runTest(useDocker: boolean, numTrials: number = 1, logDir?: string) {
     console.log(`\n--- Testing with ${useDocker ? 'Docker' : 'Local'} Provider (${numTrials} trials, logDir: ${logDir || 'none'}) ---`);
@@ -25,7 +33,7 @@ async function runTest(useDocker: boolean, numTrials: number = 1, logDir?: strin
     } as BaseAgent;
 
     const taskPath = path.join(__dirname, '..', 'tasks', 'superlint_demo');
-    const report = await runner.runEval(solvingAgent, taskPath, [], numTrials);
+    const report = await runner.runEval(solvingAgent, taskPath, [], DEFAULT_EVAL_OPTS, numTrials);
 
     console.log('Eval Report Summary:');
     console.log(`Task: ${report.task}`);
@@ -127,6 +135,7 @@ async function main() {
             secretAgent,
             path.join(__dirname, '..', 'tasks', 'superlint_demo'),
             [],
+            DEFAULT_EVAL_OPTS,
             1,
             { MY_SECRET: 'SUPER_SECRET_KEY_12345' }
         );

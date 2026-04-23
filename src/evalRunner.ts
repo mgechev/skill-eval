@@ -2,7 +2,7 @@ import * as fs from 'fs-extra';
 import * as path from 'path';
 import {
     BaseAgent, EnvironmentProvider,
-    LogEntry, TrialResult, EvalReport, GraderResult
+    LogEntry, TrialResult, EvalReport, GraderResult, AgentResult
 } from './types';
 import { ResolvedGrader } from './core/config.types';
 import { getGrader } from './graders';
@@ -45,6 +45,18 @@ function calculatePassPowK(n: number, c: number, k: number): number {
 /** Estimate token count from text (~4 chars per token) */
 function estimateTokens(text: string): number {
     return Math.ceil(text.length / 4);
+}
+
+/** Normalize agent output to AgentResult format */
+function normalizeAgentOutput(raw: string | AgentResult): AgentResult {
+    if (typeof raw === 'string') {
+        return {
+            output: raw,
+            skills_triggered: [],
+            tools_used: [],
+        };
+    }
+    return raw;
 }
 
 /** Options for running an eval */
@@ -198,16 +210,17 @@ export class EvalRunner {
             };
 
             const agentTimeoutMs = opts.timeoutSec * 1000;
-            const agentLogs = await withTimeout(
+            const agentRaw = await withTimeout(
                 agent.run(instruction, workspace, loggedRunCommand),
                 agentTimeoutMs,
                 `Agent (limit: ${opts.timeoutSec}s)`
             );
+            const agentResult = normalizeAgentOutput(agentRaw);
 
             sessionLog.push({
                 type: 'agent_result',
                 timestamp: this.timestamp(),
-                output: agentLogs
+                output: agentResult.output
             });
 
             // Run all graders
