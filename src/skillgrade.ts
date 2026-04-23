@@ -102,6 +102,7 @@ async function main() {
         provider: getFlag('provider'),
         grader: getFlag('grader'),
         output: outputDir,
+        acpCommand: getFlag('acp-command'),
     });
 
     if (openPreview) {
@@ -129,8 +130,9 @@ function printHelp() {
     --grader=TYPE      Run only graders of this type (deterministic|llm_rubric)
     --trials=N         Override trial count (overrides preset)
     --parallel=N       Run trials concurrently
-    --agent=gemini|claude|codex   Override agent (default: auto-detect from API key)
+    --agent=gemini|claude|codex|acp   Override agent (default: auto-detect from API key)
     --provider=docker|local Override provider (default: docker)
+    --acp-command=CMD  ACP agent command (e.g., "gemini --acp")
     --output=DIR       Output directory for reports and temp files
                        Default: $TMPDIR/skillgrade
     --validate         Verify graders using reference solutions
@@ -146,6 +148,7 @@ function printHelp() {
     skillgrade --eval=fix-linting  # run a specific eval
     skillgrade --eval=foo,bar      # run multiple evals
     skillgrade --regression --ci   # CI regression with 30 trials
+    skillgrade --agent=acp --acp-command="gemini --acp"  # use ACP-compatible agent
     skillgrade preview browser     # open web UI
 `);
 }

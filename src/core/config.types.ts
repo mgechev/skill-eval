@@ -34,6 +34,14 @@ export interface EnvironmentConfig {
     memory_mb: number;
 }
 
+/** ACP (Agent Client Protocol) configuration */
+export interface AcpConfig {
+    /** Command to start the ACP agent (e.g., "gemini --acp") */
+    command: string;
+    /** Optional environment variables for the ACP process */
+    env?: Record<string, string>;
+}
+
 /** Single eval task */
 export interface EvalTaskConfig {
     name: string;
@@ -54,12 +62,13 @@ export interface EvalTaskConfig {
 
 /** Top-level defaults */
 export interface EvalDefaults {
-    agent: string;      // 'gemini' | 'claude' | 'codex'
+    agent: string;      // 'gemini' | 'claude' | 'codex' | 'acp'
     provider: string;   // 'docker' | 'local'
     trials: number;
     timeout: number;
     threshold: number;  // for --ci mode
     grader_model?: string;  // default LLM grader model
+    acp?: AcpConfig;    // ACP agent configuration
     docker: DockerConfig;
     environment: EnvironmentConfig;
 }
@@ -84,6 +93,7 @@ export interface ResolvedTask {
     trials: number;
     timeout: number;
     grader_model?: string;  // inherited default model for LLM graders
+    acp?: AcpConfig;        // ACP agent configuration
     docker: DockerConfig;
     environment: EnvironmentConfig;
 }

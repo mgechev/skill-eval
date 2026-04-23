@@ -11,7 +11,7 @@ import { detectSkills } from '../core/skills';
 import { DockerProvider } from '../providers/docker';
 import { LocalProvider } from '../providers/local';
 import { EvalRunner, EvalRunOptions } from '../evalRunner';
-import { createAgent } from '../agents/registry';
+import { createAgent, AgentConfig } from '../agents/registry';
 import { BaseAgent, EvalReport } from '../types';
 import { ResolvedTask } from '../core/config.types';
 import { parseEnvFile } from '../utils/env';
@@ -25,10 +25,11 @@ interface RunOptions {
     ci?: boolean;
     threshold?: number;
     preset?: 'smoke' | 'reliable' | 'regression';
-    agent?: string;      // override agent (gemini|claude)
+    agent?: string;      // override agent (gemini|claude|codex|acp)
     provider?: string;   // override provider (docker|local)
     output?: string;     // output directory for reports and temp files
     grader?: string;     // filter graders by type (deterministic|llm_rubric)
+    acpCommand?: string; // ACP agent command (e.g., "gemini --acp")
 }
 
 async function loadEnvFile(filePath: string): Promise<Record<string, string>> {
@@ -138,6 +139,21 @@ export async function runEvals(dir: string, opts: RunOptions) {
         }
         const providerName = opts.provider || resolved.provider;
 
+        // Build agent config (for ACP agent)
+        const agentConfig: AgentConfig = {};
+        if (agentName === 'acp') {
+            // Use CLI flag > eval.yaml config > default
+            const acpCommand = opts.acpCommand || resolved.acp?.command;
+            if (!acpCommand) {
+                throw new Error('ACP agent requires a command. Specify via --acp-command or acp.command in eval.yaml');
+            }
+            agentConfig.acp = {
+                command: acpCommand,
+                env: resolved.acp?.env,
+                apiKey: env.GEMINI_API_KEY || env.ANTHROPIC_API_KEY || env.OPENAI_API_KEY,
+            };
+        }
+
         // Pick provider
         const provider = providerName === 'docker'
             ? new DockerProvider()
@@ -173,7 +189,7 @@ export async function runEvals(dir: string, opts: RunOptions) {
             if (!passed) allPassed = false;
         } else {
             // Normal eval mode
-            const agent = createAgent(agentName);
+            const agent = createAgent(agentName, agentConfig);
 
             header(resolved.name);
             console.log(`    ${fmt.dim('agent')} ${agentName}  ${fmt.dim('provider')} ${providerName}  ${fmt.dim('trials')} ${trials}${parallel > 1 ? `  ${fmt.dim('parallel')} ${parallel}` : ''}`);
@@ -271,6 +287,12 @@ async function prepareTempTaskDir(resolved: ResolvedTask, baseDir: string, tmpDi
         dockerfileContent += `RUN npm install -g @anthropic-ai/claude-code\n\n`;
     } else if (resolved.agent === 'codex') {
         dockerfileContent += `RUN npm install -g @openai/codex\n\n`;
+    } else if (resolved.agent === 'acp') {
+        // For ACP agent, install gemini-cli as the default ACP-compatible agent
+        // Users can customize the command via acp.command in eval.yaml
+        // Note: ACP agent works best with --provider=local since it requires
+        // the ACP command to be available in the host environment
+        dockerfileContent += `RUN npm install -g @google/gemini-cli\n\n`;
     }
 
     // Docker setup commands

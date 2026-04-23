@@ -59,8 +59,9 @@ Reports are saved to `$TMPDIR/skillgrade/<skill-name>/results/`. Override with `
 | `--grader=TYPE` | Run only graders of a type (`deterministic` or `llm_rubric`) |
 | `--trials=N` | Override trial count |
 | `--parallel=N` | Run trials concurrently |
-| `--agent=gemini\|claude\|codex` | Override agent (default: auto-detect from API key) |
+| `--agent=gemini\|claude\|codex\|acp` | Override agent (default: auto-detect from API key) |
 | `--provider=docker\|local` | Override provider |
+| `--acp-command=CMD` | ACP agent command (e.g., `gemini --acp`) |
 | `--output=DIR` | Output directory (default: `$TMPDIR/skillgrade`) |
 | `--validate` | Verify graders using reference solutions |
 | `--ci` | CI mode: exit non-zero if below threshold |
@@ -76,12 +77,16 @@ version: "1"
 # skill: path/to/my-skill
 
 defaults:
-  agent: gemini          # gemini | claude | codex
+  agent: gemini          # gemini | claude | codex | acp
   provider: docker       # docker | local
   trials: 5
   timeout: 300           # seconds
   threshold: 0.8         # for --ci mode
   grader_model: gemini-3-flash-preview  # default LLM grader model
+  acp:                   # ACP agent configuration (optional)
+    command: gemini --acp  # command to start ACP-compatible agent
+    env:                  # optional environment variables
+      DEBUG: "1"
   docker:
     base: node:20-slim
     setup: |             # extra commands run during image build
@@ -231,6 +236,51 @@ Exits with code 1 if pass rate falls below `--threshold` (default: 0.8).
 | `OPENAI_API_KEY` | Agent execution (Codex), `skillgrade init` |
 
 Variables are also loaded from `.env` in the skill directory. Shell values override `.env`. All values are **redacted** from persisted session logs.
+
+## ACP Agent
+
+[Agent Client Protocol (ACP)](https://agentclientprotocol.com/) is an open protocol that standardizes communication between AI coding agents and clients. Using an ACP-compatible agent allows you to evaluate skills without managing API keys directly.
+
+### Quick Start
+
+```bash
+# Use Gemini CLI in ACP mode (requires gemini CLI installed)
+skillgrade --agent=acp --acp-command="gemini --acp"
+
+# Or configure in eval.yaml
+```
+
+```yaml
+defaults:
+  agent: acp
+  acp:
+    command: gemini --acp
+```
+
+### ACP-Compatible Agents
+
+Any agent that supports the ACP protocol can be used:
+
+| Agent | Command |
+|-------|---------|
+| Gemini CLI | `gemini --acp` |
+| Other ACP agents | Check agent documentation |
+
+### How It Works
+
+1. skillgrade starts the ACP agent as a subprocess
+2. Communication happens via JSON-RPC 2.0 over stdio
+3. No API key required — authentication is handled by the ACP agent
+4. Works best with `--provider=local` since the ACP agent needs to be available in your environment
+
+### CLI Options
+
+| Flag | Description |
+|------|-------------|
+| `--agent=acp` | Use ACP-compatible agent |
+| `--acp-command=CMD` | Command to start the ACP agent |
+
+The `--acp-command` can also be set in `eval.yaml` under `defaults.acp.command`.
 
 ## Best Practices
 

@@ -11,6 +11,7 @@ import {
     ResolvedGrader,
     WorkspaceMapping,
     EnvironmentConfig,
+    AcpConfig,
 } from './config.types';
 
 // We use a simple YAML parser — js-yaml is the standard
@@ -63,6 +64,19 @@ function validateConfig(raw: any): EvalConfig {
     }
 
     const version = raw.version || '1';
+
+    // Handle ACP config
+    let acp: AcpConfig | undefined;
+    if (raw.defaults?.acp) {
+        if (!raw.defaults.acp.command) {
+            throw new Error('eval.yaml: acp.command is required when using ACP agent');
+        }
+        acp = {
+            command: raw.defaults.acp.command,
+            env: raw.defaults.acp.env,
+        };
+    }
+
     const defaults: EvalDefaults = {
         ...DEFAULT_CONFIG,
         ...(raw.defaults || {}),
@@ -75,6 +89,11 @@ function validateConfig(raw: any): EvalConfig {
             ...(raw.defaults?.environment || {}),
         },
     };
+
+    // Add ACP config if present
+    if (acp) {
+        defaults.acp = acp;
+    }
 
     if (!raw.tasks || !Array.isArray(raw.tasks) || raw.tasks.length === 0) {
         throw new Error('eval.yaml must have at least one task in the "tasks" array');
@@ -144,6 +163,7 @@ export async function resolveTask(
         ...(task.environment || {}),
     };
     const grader_model = task.grader_model || defaults.grader_model;
+    const acp = defaults.acp;  // ACP config is only at defaults level
 
     // Resolve instruction — could be inline text or file path
     const instruction = await resolveFileOrInline(task.instruction, baseDir);
@@ -183,6 +203,7 @@ export async function resolveTask(
         trials,
         timeout,
         grader_model,
+        acp,
         docker,
         environment,
     };
