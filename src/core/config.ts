@@ -127,6 +127,7 @@ function validateConfig(raw: any): EvalConfig {
                 run: g.run,
                 rubric: g.rubric,
                 model: g.model,
+                provider: g.provider,
                 weight: g.weight ?? 1.0,
             })),
             solution: t.solution,
@@ -175,6 +176,7 @@ export async function resolveTask(
                 type: g.type,
                 setup: g.setup,
                 model: g.model,
+                provider: g.provider,
                 weight: g.weight,
             };
             if (g.type === 'deterministic' && g.run) {

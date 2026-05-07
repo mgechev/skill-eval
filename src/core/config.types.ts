@@ -15,10 +15,11 @@ export interface WorkspaceMapping {
 /** Grader definition */
 export interface EvalGraderConfig {
     type: 'deterministic' | 'llm_rubric';
-    setup?: string;     // commands to install grader dependencies (runs during image build)
-    run?: string;       // inline script or file path (deterministic)
-    rubric?: string;    // inline rubric or file path (llm_rubric)
-    model?: string;     // LLM model override (e.g. 'gemini-2.0-flash', 'claude-sonnet-4-20250514')
+    setup?: string;                               // commands to install grader dependencies (runs during image build)
+    run?: string;                                 // inline script or file path (deterministic)
+    rubric?: string;                              // inline rubric or file path (llm_rubric)
+    model?: string;                               // model override, e.g. 'claude-sonnet-4-20250514' or 'gemini-3-flash-preview'
+    provider?: 'gemini' | 'anthropic' | 'openai'; // which LLM API to call (default: 'gemini')
     weight: number;
 }
 
@@ -100,9 +101,10 @@ export interface ResolvedTask {
 
 export interface ResolvedGrader {
     type: 'deterministic' | 'llm_rubric';
-    setup?: string;     // resolved setup commands
-    run?: string;       // resolved content for deterministic
-    rubric?: string;    // resolved content for llm_rubric
-    model?: string;     // LLM model override
+    setup?: string;                               // resolved setup commands
+    run?: string;                                 // resolved content for deterministic
+    rubric?: string;                              // resolved content for llm_rubric
+    model?: string;                               // resolved model override
+    provider?: 'gemini' | 'anthropic' | 'openai'; // which LLM API to call (default: 'gemini')
     weight: number;
 }

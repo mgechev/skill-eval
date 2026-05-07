@@ -244,6 +244,7 @@ export class EvalRunner {
                         ? `prompts/${llmIndex === 0 ? 'quality.md' : `quality_${llmIndex}.md`}`
                         : undefined,
                     model: graderDef.model || opts.graderModel,
+                    provider: graderDef.provider,
                     weight: graderDef.weight,
                 };
 
