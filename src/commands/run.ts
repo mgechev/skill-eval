@@ -15,7 +15,7 @@ import { createAgent, AgentConfig } from '../agents/registry';
 import { BaseAgent, EvalReport } from '../types';
 import { ResolvedTask } from '../core/config.types';
 import { parseEnvFile } from '../utils/env';
-import { fmt, header, kv, trialRow, resultsSummary, validationResult } from '../utils/cli';
+import { fmt, header, kv, resultsSummary, validationResult } from '../utils/cli';
 
 interface RunOptions {
     eval?: string;       // run specific eval(s) by name (comma-separated)
@@ -317,12 +317,20 @@ async function prepareTempTaskDir(resolved: ResolvedTask, baseDir: string, tmpDi
     // Copy workspace files
     for (const w of resolved.workspace) {
         const srcPath = path.resolve(baseDir, w.src);
-        const destInTmp = path.join(tmpDir, path.basename(w.src));
         if (await fs.pathExists(srcPath)) {
-            await fs.copy(srcPath, destInTmp);
-            dockerfileContent += `COPY ${path.basename(w.src)} ${w.dest}\n`;
-            if (w.chmod) {
-                dockerfileContent += `RUN chmod ${w.chmod} ${w.dest}\n`;
+            if (resolved.provider === 'local') {
+                // For local provider: copy directly to destination path in tmpDir
+                const destPath = path.join(tmpDir, w.dest);
+                await fs.ensureDir(path.dirname(destPath));
+                await fs.copy(srcPath, destPath);
+            } else {
+                // For Docker: copy to tmpDir root, Dockerfile will place it
+                const destInTmp = path.join(tmpDir, path.basename(w.src));
+                await fs.copy(srcPath, destInTmp);
+                dockerfileContent += `COPY ${path.basename(w.src)} ${w.dest}\n`;
+                if (w.chmod) {
+                    dockerfileContent += `RUN chmod ${w.chmod} ${w.dest}\n`;
+                }
             }
         }
     }
