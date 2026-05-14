@@ -332,7 +332,7 @@ describe('LLMGrader', () => {
       } as any);
 
       const provider = makeProvider('');
-      const env = { ANTHROPIC_API_KEY: 'test-key', ANTHROPIC_BASE_URL: 'http://localhost:8080' };
+      const env = { ANTHROPIC_API_KEY: 'test-key', ANTHROPIC_BASE_URL: 'http://localhost:8080/v1' };
       const config: GraderConfig = { ...baseConfig, provider: 'anthropic' };
       const result = await grader.grade('/workspace', provider, config, '/task', [], env);
 
