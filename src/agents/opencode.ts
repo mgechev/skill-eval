@@ -18,24 +18,9 @@ export class OpenCodeAgent extends BaseAgent {
         _workspacePath: string,
         runCommand: (cmd: string) => Promise<CommandResult>
     ): Promise<string> {
-        const b64 = Buffer.from(instruction).toString('base64');
-        await runCommand(`echo '${b64}' | base64 -d > /tmp/.prompt.md`);
+        const fullCommand = `cd '${_workspacePath.replace(/'/g, "'\\''")}' && echo '${instruction.replace(/'/g, "'\\''")}' | opencode run ${this.config.model ? `--model ${this.config.model}` : ''}`;
 
-        let command = 'opencode run';
-        if (this.config.agent) {
-            command += ` --agent ${this.config.agent}`;
-        }
-        if (this.config.model) {
-            command += ` --model ${this.config.model}`;
-        }
-        command += ` "$(cat /tmp/.prompt.md)"`;
-
-        const result = await runCommand(command);
-
-        if (result.exitCode !== 0) {
-            console.error('OpenCodeAgent: OpenCode failed to execute correctly.');
-        }
-
+        const result = await runCommand(fullCommand);
         return result.stdout + '\n' + result.stderr;
     }
 }
