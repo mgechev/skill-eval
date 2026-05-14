@@ -57,6 +57,7 @@ export interface EvalTaskConfig {
     trials?: number;
     timeout?: number;
     grader_model?: string;
+    grader_provider?: 'gemini' | 'anthropic' | 'openai';
     docker?: DockerConfig;
     environment?: Partial<EnvironmentConfig>;
 }
@@ -68,7 +69,8 @@ export interface EvalDefaults {
     trials: number;
     timeout: number;
     threshold: number;  // for --ci mode
-    grader_model?: string;  // default LLM grader model
+    grader_model?: string;      // default LLM grader model
+    grader_provider?: 'gemini' | 'anthropic' | 'openai';  // default LLM grader provider
     acp?: AcpConfig;    // ACP agent configuration
     docker: DockerConfig;
     environment: EnvironmentConfig;
@@ -93,7 +95,8 @@ export interface ResolvedTask {
     provider: string;
     trials: number;
     timeout: number;
-    grader_model?: string;  // inherited default model for LLM graders
+    grader_model?: string;                                      // inherited default model for LLM graders
+    grader_provider?: 'gemini' | 'anthropic' | 'openai';        // inherited default provider for LLM graders
     acp?: AcpConfig;        // ACP agent configuration
     docker: DockerConfig;
     environment: EnvironmentConfig;

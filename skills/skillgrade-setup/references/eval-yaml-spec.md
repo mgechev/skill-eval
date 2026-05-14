@@ -19,6 +19,7 @@ Configure shared settings for all tasks.
 | `timeout` | number | 300 | Seconds before agent timeout |
 | `threshold` | number | 0.8 | Pass rate threshold for `--ci` mode |
 | `grader_model` | string | auto-detect | Default LLM model for rubric graders |
+| `grader_provider` | string | `gemini` | Default LLM provider for rubric graders (`gemini`, `anthropic`, or `openai`) |
 
 ### defaults.docker
 

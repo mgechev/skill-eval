@@ -65,6 +65,7 @@ export interface EvalRunOptions {
     graders: ResolvedGrader[];
     timeoutSec: number;
     graderModel?: string;       // default LLM grader model
+    graderProvider?: 'gemini' | 'anthropic' | 'openai';  // default LLM grader provider
     graderTimeoutSec?: number;  // timeout per grader (default: 120s)
     environment: {
         cpus: number;
@@ -244,7 +245,7 @@ export class EvalRunner {
                         ? `prompts/${llmIndex === 0 ? 'quality.md' : `quality_${llmIndex}.md`}`
                         : undefined,
                     model: graderDef.model || opts.graderModel,
-                    provider: graderDef.provider,
+                    provider: graderDef.provider || opts.graderProvider,
                     weight: graderDef.weight,
                 };
 

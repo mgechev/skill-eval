@@ -207,6 +207,130 @@ tasks:
     const config = await loadEvalConfig('/test');
     expect(config.tasks[0].graders[0].weight).toBe(1.0);
   });
+
+  it('parses grader_provider from defaults', async () => {
+    mockPathExists.mockResolvedValue(true as any);
+    const yaml = `version: "1"
+defaults:
+  grader_provider: anthropic
+tasks:
+  - name: test-task
+    instruction: do it
+    graders:
+      - type: llm_rubric
+        rubric: "check quality"
+`;
+    mockReadFile.mockResolvedValue(yaml as any);
+
+    const config = await loadEvalConfig('/test');
+    expect(config.defaults.grader_provider).toBe('anthropic');
+  });
+
+  it('rejects invalid grader_provider value', async () => {
+    mockPathExists.mockResolvedValue(true as any);
+    const yaml = `version: "1"
+defaults:
+  grader_provider: invalid_provider
+tasks:
+  - name: test-task
+    instruction: do it
+    graders:
+      - type: deterministic
+        run: "echo ok"
+`;
+    mockReadFile.mockResolvedValue(yaml as any);
+
+    await expect(loadEvalConfig('/test')).rejects.toThrow('grader_provider must be one of');
+  });
+
+  it('rejects invalid provider on individual grader', async () => {
+    mockPathExists.mockResolvedValue(true as any);
+    const yaml = `version: "1"
+tasks:
+  - name: test-task
+    instruction: do it
+    graders:
+      - type: llm_rubric
+        rubric: "check quality"
+        provider: invalid_provider
+`;
+    mockReadFile.mockResolvedValue(yaml as any);
+
+    await expect(loadEvalConfig('/test')).rejects.toThrow('grader has invalid provider');
+  });
+
+  it('rejects invalid grader_provider at task level', async () => {
+    mockPathExists.mockResolvedValue(true as any);
+    const yaml = `version: "1"
+tasks:
+  - name: test-task
+    instruction: do it
+    grader_provider: bad_provider
+    graders:
+      - type: deterministic
+        run: "echo ok"
+`;
+    mockReadFile.mockResolvedValue(yaml as any);
+
+    await expect(loadEvalConfig('/test')).rejects.toThrow('has invalid grader_provider');
+  });
+
+  it('preserves task-level grader_provider through loadEvalConfig', async () => {
+    mockPathExists.mockResolvedValue(true as any);
+    const yaml = `version: "1"
+defaults:
+  grader_provider: gemini
+tasks:
+  - name: test-task
+    instruction: do it
+    grader_provider: anthropic
+    graders:
+      - type: llm_rubric
+        rubric: "check quality"
+`;
+    mockReadFile.mockResolvedValue(yaml as any);
+
+    const config = await loadEvalConfig('/test');
+    expect(config.tasks[0].grader_provider).toBe('anthropic');
+  });
+
+  it('preserves task-level grader_model through loadEvalConfig', async () => {
+    mockPathExists.mockResolvedValue(true as any);
+    const yaml = `version: "1"
+defaults:
+  grader_model: gemini-1.5-flash
+tasks:
+  - name: test-task
+    instruction: do it
+    grader_model: claude-3-5-sonnet
+    graders:
+      - type: llm_rubric
+        rubric: "check quality"
+`;
+    mockReadFile.mockResolvedValue(yaml as any);
+
+    const config = await loadEvalConfig('/test');
+    expect(config.tasks[0].grader_model).toBe('claude-3-5-sonnet');
+  });
+
+  it('preserves task-level environment through loadEvalConfig', async () => {
+    mockPathExists.mockResolvedValue(true as any);
+    const yaml = `version: "1"
+tasks:
+  - name: test-task
+    instruction: do it
+    environment:
+      cpus: 4
+      memory_mb: 4096
+    graders:
+      - type: deterministic
+        run: "echo ok"
+`;
+    mockReadFile.mockResolvedValue(yaml as any);
+
+    const config = await loadEvalConfig('/test');
+    expect(config.tasks[0].environment).toEqual({ cpus: 4, memory_mb: 4096 });
+  });
 });
 
 describe('resolveTask', () => {
@@ -236,6 +360,61 @@ describe('resolveTask', () => {
     expect(resolved.trials).toBe(5);
     expect(resolved.timeout).toBe(300);
     expect(resolved.docker.base).toBe('node:20-slim');
+  });
+
+  it('resolves grader_provider on the task level', async () => {
+    const defaultsWitProvider: EvalDefaults = {
+      ...defaults,
+      grader_provider: 'anthropic',
+    };
+    const task: EvalTaskConfig = {
+      name: 'test-task',
+      instruction: 'multi\nline',
+      graders: [{ type: 'llm_rubric', rubric: 'check quality', weight: 1.0 }],
+    };
+
+    const resolved = await resolveTask(task, defaultsWitProvider, '/base');
+    expect(resolved.grader_provider).toBe('anthropic');
+    expect(resolved.graders[0].provider).toBeUndefined();
+  });
+
+  it('grader-level provider is preserved as-is', async () => {
+    const task: EvalTaskConfig = {
+      name: 'test-task',
+      instruction: 'multi\nline',
+      graders: [{ type: 'llm_rubric', rubric: 'check quality', weight: 1.0, provider: 'openai' }],
+    };
+
+    const resolved = await resolveTask(task, defaults, '/base');
+    expect(resolved.graders[0].provider).toBe('openai');
+  });
+
+  it('grader without explicit provider remains undefined', async () => {
+    const task: EvalTaskConfig = {
+      name: 'test-task',
+      instruction: 'multi\nline',
+      graders: [{ type: 'llm_rubric', rubric: 'check quality', weight: 1.0 }],
+    };
+
+    const resolved = await resolveTask(task, defaults, '/base');
+    expect(resolved.graders[0].provider).toBeUndefined();
+  });
+
+  it('task-level grader_provider overrides defaults', async () => {
+    const defaultsWitProvider: EvalDefaults = {
+      ...defaults,
+      grader_provider: 'gemini',
+    };
+    const task: EvalTaskConfig = {
+      name: 'test-task',
+      instruction: 'multi\nline',
+      grader_provider: 'openai',
+      graders: [{ type: 'llm_rubric', rubric: 'check quality', weight: 1.0 }],
+    };
+
+    const resolved = await resolveTask(task, defaultsWitProvider, '/base');
+    expect(resolved.grader_provider).toBe('openai');
+    expect(resolved.graders[0].provider).toBeUndefined();
   });
 
   it('task overrides take precedence over defaults', async () => {

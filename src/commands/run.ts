@@ -122,6 +122,7 @@ export async function runEvals(dir: string, opts: RunOptions) {
                 : resolved.graders,
             timeoutSec: resolved.timeout,
             graderModel: resolved.grader_model,
+            graderProvider: resolved.grader_provider,
             environment: resolved.environment,
         };
 

@@ -85,6 +85,7 @@ defaults:
   timeout: 300           # seconds
   threshold: 0.8         # for --ci mode
   grader_model: gemini-3-flash-preview  # default LLM grader model
+  grader_provider: gemini               # default LLM grader provider: gemini | anthropic | openai
   acp:                   # ACP agent configuration (optional)
     command: gemini --acp  # command to start ACP-compatible agent
     env:                  # optional environment variables
@@ -123,6 +124,7 @@ tasks:
 
     # Per-task overrides (optional)
     agent: claude
+    grader_provider: anthropic   # override default LLM grader provider
     trials: 10
     timeout: 600
 ```
