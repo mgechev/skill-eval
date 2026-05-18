@@ -6,9 +6,10 @@ export interface CommandResult {
 
 export interface GraderConfig {
     type: 'deterministic' | 'llm_rubric';
-    command?: string;         // for deterministic: shell command to execute (e.g. 'bash tests/test.sh')
-    rubric?: string;          // for llm_rubric: file path to rubric (e.g. 'prompts/quality.md')
-    model?: string;           // for llm_rubric: LLM model override
+    command?: string;                             // for deterministic: shell command to execute (e.g. 'bash tests/test.sh')
+    rubric?: string;                              // for llm_rubric: file path to rubric (e.g. 'prompts/quality.md')
+    model?: string;                               // for llm_rubric: LLM model override
+    provider?: 'gemini' | 'anthropic' | 'openai'; // for llm_rubric: which LLM API to call (default: 'gemini')
     weight: number;
 }
 

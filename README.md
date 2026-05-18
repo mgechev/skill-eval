@@ -85,6 +85,7 @@ defaults:
   timeout: 300           # seconds
   threshold: 0.8         # for --ci mode
   grader_model: gemini-3-flash-preview  # default LLM grader model
+  grader_provider: gemini               # default LLM grader provider: gemini | anthropic | openai
   acp:                   # ACP agent configuration (optional)
     command: gemini --acp  # command to start ACP-compatible agent
     env:                  # optional environment variables
@@ -117,11 +118,13 @@ tasks:
       - type: llm_rubric
         rubric: |
           Did the agent follow the check → fix → verify workflow?
+        provider: gemini                 # optional: gemini (default) | anthropic | openai
         model: gemini-2.0-flash          # optional model override
         weight: 0.3
 
     # Per-task overrides (optional)
     agent: claude
+    grader_provider: anthropic   # override default LLM grader provider
     trials: 10
     timeout: 600
 ```
@@ -194,10 +197,19 @@ Evaluates the agent's session transcript against qualitative criteria:
     Efficiency (0-0.5):
     - Completed in ≤5 commands?
   weight: 0.3
+  provider: gemini           # gemini (default) | anthropic | openai
   model: gemini-2.0-flash    # optional, auto-detected from API key
 ```
 
-Uses Gemini or Anthropic based on available API key. Override with the `model` field.
+The `provider` field selects which LLM API to call:
+
+| Provider   | API Key Env Var     | Base URL Env Var (optional) | Default Model              |
+|------------|---------------------|-----------------------------|----------------------------|
+| `gemini`   | `GEMINI_API_KEY`    | -                           | `gemini-3-flash-preview`   |
+| `anthropic`| `ANTHROPIC_API_KEY` | `ANTHROPIC_BASE_URL`        | `claude-sonnet-4-20250514` |
+| `openai`   | `OPENAI_API_KEY`    | `OPENAI_BASE_URL`           | `gpt-4o`                   |
+
+`ANTHROPIC_BASE_URL` and `OPENAI_BASE_URL` enable custom/self-hosted endpoints (Ollama, vLLM, etc.).
 
 ### Combining Graders
 
@@ -233,9 +245,11 @@ Exits with code 1 if pass rate falls below `--threshold` (default: 0.8).
 
 | Variable | Used by |
 |----------|---------|
-| `GEMINI_API_KEY` | Agent execution, LLM grading, `skillgrade init` |
-| `ANTHROPIC_API_KEY` | Agent execution, LLM grading, `skillgrade init` |
-| `OPENAI_API_KEY` | Agent execution (Codex), `skillgrade init` |
+| `GEMINI_API_KEY` | Agent execution, LLM grading (`provider: gemini`), `skillgrade init` |
+| `ANTHROPIC_API_KEY` | Agent execution, LLM grading (`provider: anthropic`), `skillgrade init` |
+| `OPENAI_API_KEY` | Agent execution (Codex), LLM grading (`provider: openai`), `skillgrade init` |
+| `ANTHROPIC_BASE_URL` | LLM grading (`provider: anthropic`) — custom Anthropic-compatible endpoint |
+| `OPENAI_BASE_URL` | LLM grading (`provider: openai`) — custom OpenAI-compatible endpoint (Ollama, vLLM, etc.) |
 
 Variables are also loaded from `.env` in the skill directory. Shell values override `.env`. All values are **redacted** from persisted session logs.
 

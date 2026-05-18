@@ -95,6 +95,12 @@ function validateConfig(raw: any): EvalConfig {
         defaults.acp = acp;
     }
 
+    // Validate grader_provider
+    const validGraderProviders = ['gemini', 'anthropic', 'openai'];
+    if (defaults.grader_provider && !validGraderProviders.includes(defaults.grader_provider)) {
+        throw new Error(`eval.yaml: grader_provider must be one of ${validGraderProviders.join(', ')}, got "${defaults.grader_provider}"`);
+    }
+
     if (!raw.tasks || !Array.isArray(raw.tasks) || raw.tasks.length === 0) {
         throw new Error('eval.yaml must have at least one task in the "tasks" array');
     }
@@ -104,6 +110,9 @@ function validateConfig(raw: any): EvalConfig {
         if (!t.instruction) throw new Error(`Task "${t.name}" is missing an "instruction"`);
         if (!t.graders || !Array.isArray(t.graders) || t.graders.length === 0) {
             throw new Error(`Task "${t.name}" must have at least one grader`);
+        }
+        if (t.grader_provider && !validGraderProviders.includes(t.grader_provider)) {
+            throw new Error(`Task "${t.name}" has invalid grader_provider "${t.grader_provider}", must be one of ${validGraderProviders.join(', ')}`);
         }
 
         const workspace: WorkspaceMapping[] = (t.workspace || []).map((w: any) => {
@@ -121,20 +130,29 @@ function validateConfig(raw: any): EvalConfig {
             name: t.name,
             instruction: t.instruction,
             workspace,
-            graders: t.graders.map((g: any) => ({
-                type: g.type,
-                setup: g.setup,
-                run: g.run,
-                rubric: g.rubric,
-                model: g.model,
-                weight: g.weight ?? 1.0,
-            })),
+            graders: t.graders.map((g: any) => {
+                if (g.provider && !validGraderProviders.includes(g.provider)) {
+                    throw new Error(`Task "${t.name}" grader has invalid provider "${g.provider}", must be one of ${validGraderProviders.join(', ')}`);
+                }
+                return {
+                    type: g.type,
+                    setup: g.setup,
+                    run: g.run,
+                    rubric: g.rubric,
+                    model: g.model,
+                    provider: g.provider,
+                    weight: g.weight ?? 1.0,
+                };
+            }),
             solution: t.solution,
             agent: t.agent,
             provider: t.provider,
             trials: t.trials,
             timeout: t.timeout,
+            grader_model: t.grader_model,
+            grader_provider: t.grader_provider,
             docker: t.docker,
+            environment: t.environment,
         };
     });
 
@@ -163,6 +181,7 @@ export async function resolveTask(
         ...(task.environment || {}),
     };
     const grader_model = task.grader_model || defaults.grader_model;
+    const grader_provider = task.grader_provider || defaults.grader_provider;
     const acp = defaults.acp;  // ACP config is only at defaults level
 
     // Resolve instruction — could be inline text or file path
@@ -175,6 +194,7 @@ export async function resolveTask(
                 type: g.type,
                 setup: g.setup,
                 model: g.model,
+                provider: g.provider,
                 weight: g.weight,
             };
             if (g.type === 'deterministic' && g.run) {
@@ -203,6 +223,7 @@ export async function resolveTask(
         trials,
         timeout,
         grader_model,
+        grader_provider,
         acp,
         docker,
         environment,

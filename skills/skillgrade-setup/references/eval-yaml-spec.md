@@ -19,6 +19,7 @@ Configure shared settings for all tasks.
 | `timeout` | number | 300 | Seconds before agent timeout |
 | `threshold` | number | 0.8 | Pass rate threshold for `--ci` mode |
 | `grader_model` | string | auto-detect | Default LLM model for rubric graders |
+| `grader_provider` | string | `gemini` | Default LLM provider for rubric graders (`gemini`, `anthropic`, or `openai`) |
 
 ### defaults.docker
 
@@ -64,7 +65,8 @@ Array of evaluation tasks. Each task has:
 | `run` | string | Deterministic only | Command to execute |
 | `setup` | string | No | Install command for grader dependencies |
 | `rubric` | string | LLM only | Evaluation rubric text or file path |
-| `model` | string | No | LLM model override |
+| `provider` | string | No | LLM provider: `gemini` (default), `anthropic`, or `openai` |
+| `model` | string | No | LLM model override (each provider has a default) |
 | `weight` | number | No | Grader weight (default: 1) |
 
 ## File References

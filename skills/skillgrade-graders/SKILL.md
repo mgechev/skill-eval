@@ -42,7 +42,8 @@ description: Authors deterministic and LLM rubric graders for skillgrade evaluat
      rubric: |
        [rubric text or file path]
      weight: 0.3
-     model: gemini-2.0-flash  # optional, auto-detected from API key
+     provider: gemini               # optional: gemini (default) | anthropic | openai
+     model: gemini-3-flash-preview  # optional, each provider has a default model
    ```
 4. For long rubrics, store in a separate file and reference by path: `rubric: rubrics/quality.md`.
 
@@ -70,5 +71,6 @@ description: Authors deterministic and LLM rubric graders for skillgrade evaluat
 
 ## Error Handling
 * If a deterministic grader outputs non-JSON, ensure all `echo`/`console.log` statements except the final JSON result are redirected to stderr.
-* If an LLM rubric grader returns 0.00 with "No API key," set `GEMINI_API_KEY` or `ANTHROPIC_API_KEY` in the environment.
+* If an LLM rubric grader returns 0.00 with a missing API key message, set the appropriate key for your provider: `GEMINI_API_KEY` (provider: gemini), `ANTHROPIC_API_KEY` (provider: anthropic), or `OPENAI_API_KEY` (provider: openai).
+* To use a custom/self-hosted LLM endpoint, set `ANTHROPIC_BASE_URL` (for provider: anthropic) or `OPENAI_BASE_URL` (for provider: openai) — e.g. for Ollama or vLLM.
 * If scores are inconsistent across trials, reduce rubric ambiguity by adding concrete examples of passing and failing behavior.

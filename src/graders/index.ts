@@ -79,9 +79,24 @@ export class DeterministicGrader implements Grader {
 
 /**
  * Uses an LLM to evaluate the agent's session transcript against a rubric.
- * Requires GEMINI_API_KEY or ANTHROPIC_API_KEY in the environment.
+ *
+ * Supported providers (selected via `config.provider`, defaults to "gemini"):
+ *   - gemini      → Google Gemini (GEMINI_API_KEY)
+ *   - anthropic   → Anthropic Claude or compatible (ANTHROPIC_API_KEY; optional ANTHROPIC_BASE_URL)
+ *   - openai      → OpenAI or compatible (OPENAI_API_KEY; optional OPENAI_BASE_URL for Ollama, vLLM, etc.)
+ *
+ * Each provider method resolves its own API key, makes the HTTP call, and
+ * handles errors — returning a zero-score GraderResult on any failure.
  */
 export class LLMGrader implements Grader {
+
+    /** Default models when no model override is configured. */
+    private static readonly DEFAULT_MODELS: Record<string, string> = {
+        gemini: 'gemini-3-flash-preview',
+        anthropic: 'claude-sonnet-4-20250514',
+        openai: 'gpt-4o',
+    };
+
     async grade(
         _workspace: string,
         _provider: EnvironmentProvider,
@@ -151,26 +166,36 @@ ${transcript}
 
 Respond with ONLY a JSON object: {"score": <number>, "reasoning": "<brief explanation>"}`;
 
-        // Try Gemini API first, fall back to Anthropic
-        const apiKey = env?.GEMINI_API_KEY || process.env.GEMINI_API_KEY;
-        const anthropicKey = env?.ANTHROPIC_API_KEY || process.env.ANTHROPIC_API_KEY;
+        const providerName = config.provider || 'gemini';
+        const model = config.model || LLMGrader.DEFAULT_MODELS[providerName] || 'gemini-3-flash-preview';
 
-        if (apiKey) {
-            return this.callGemini(prompt, apiKey, config);
-        } else if (anthropicKey) {
-            return this.callAnthropic(prompt, anthropicKey, config);
+        switch (providerName) {
+            case "gemini":
+                return this.callGemini(prompt, model, config, env);
+            case "anthropic":
+                return this.callAnthropic(prompt, model, config, env);
+            case "openai":
+                return this.callOpenAI(prompt, model, config, env);
+            default:
+                return {
+                    grader_type: 'llm_rubric',
+                    score: 0,
+                    weight: config.weight,
+                    details: `Unknown grader provider: "${providerName}". Supported: gemini, anthropic, openai`,
+                };
         }
-
-        return {
-            grader_type: 'llm_rubric',
-            score: 0,
-            weight: config.weight,
-            details: 'No API key available for LLM grading (set GEMINI_API_KEY or ANTHROPIC_API_KEY)'
-        };
     }
 
-    private async callGemini(prompt: string, apiKey: string, config: GraderConfig): Promise<GraderResult> {
-        const model = config.model || 'gemini-3-flash-preview';
+    private async callGemini(prompt: string, model: string, config: GraderConfig, env?: Record<string, string>): Promise<GraderResult> {
+        const apiKey = env?.GEMINI_API_KEY || process.env.GEMINI_API_KEY;
+        if (!apiKey) {
+            return {
+                grader_type: 'llm_rubric',
+                score: 0,
+                weight: config.weight,
+                details: 'Missing GEMINI_API_KEY. Set the GEMINI_API_KEY environment variable to use the "gemini" grader provider.'
+            };
+        }
         const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
         try {
@@ -191,10 +216,21 @@ Respond with ONLY a JSON object: {"score": <number>, "reasoning": "<brief explan
         }
     }
 
-    private async callAnthropic(prompt: string, apiKey: string, config: GraderConfig): Promise<GraderResult> {
-        const model = config.model || 'claude-sonnet-4-20250514';
+    private async callAnthropic(prompt: string, model: string, config: GraderConfig, env?: Record<string, string>): Promise<GraderResult> {
+        const apiKey = env?.ANTHROPIC_API_KEY || process.env.ANTHROPIC_API_KEY;
+        if (!apiKey) {
+            return {
+                grader_type: 'llm_rubric',
+                score: 0,
+                weight: config.weight,
+                details: 'Missing ANTHROPIC_API_KEY. Set the ANTHROPIC_API_KEY environment variable to use the "anthropic" grader provider.'
+            };
+        }
+        const baseUrl = (env?.ANTHROPIC_BASE_URL || process.env.ANTHROPIC_BASE_URL || 'https://api.anthropic.com/v1').replace(/\/+$/, '');
+        const url = `${baseUrl}/messages`;
+
         try {
-            const response = await fetch('https://api.anthropic.com/v1/messages', {
+            const response = await fetch(url, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -213,6 +249,42 @@ Respond with ONLY a JSON object: {"score": <number>, "reasoning": "<brief explan
             return this.parseResponse(text, config);
         } catch (e) {
             return { grader_type: 'llm_rubric', score: 0, weight: config.weight, details: `Anthropic API error: ${e}` };
+        }
+    }
+
+    private async callOpenAI(prompt: string, model: string, config: GraderConfig, env?: Record<string, string>): Promise<GraderResult> {
+        const apiKey = env?.OPENAI_API_KEY || process.env.OPENAI_API_KEY;
+        if (!apiKey) {
+            return {
+                grader_type: 'llm_rubric',
+                score: 0,
+                weight: config.weight,
+                details: 'Missing OPENAI_API_KEY. Set the OPENAI_API_KEY environment variable to use the "openai" grader provider.'
+            };
+        }
+        const baseUrl = (env?.OPENAI_BASE_URL || process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1').replace(/\/+$/, '');
+        const url = `${baseUrl}/chat/completions`;
+
+        try {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${apiKey}`,
+                },
+                body: JSON.stringify({
+                    model,
+                    temperature: 0,
+                    max_tokens: 4096,
+                    messages: [{ role: 'user', content: prompt }],
+                }),
+            });
+
+            const data = await response.json() as any;
+            const text = data?.choices?.[0]?.message?.content || '';
+            return this.parseResponse(text, config);
+        } catch (e) {
+            return { grader_type: 'llm_rubric', score: 0, weight: config.weight, details: `OpenAI API error: ${e}` };
         }
     }
 

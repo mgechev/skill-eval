@@ -15,10 +15,11 @@ export interface WorkspaceMapping {
 /** Grader definition */
 export interface EvalGraderConfig {
     type: 'deterministic' | 'llm_rubric';
-    setup?: string;     // commands to install grader dependencies (runs during image build)
-    run?: string;       // inline script or file path (deterministic)
-    rubric?: string;    // inline rubric or file path (llm_rubric)
-    model?: string;     // LLM model override (e.g. 'gemini-2.0-flash', 'claude-sonnet-4-20250514')
+    setup?: string;                               // commands to install grader dependencies (runs during image build)
+    run?: string;                                 // inline script or file path (deterministic)
+    rubric?: string;                              // inline rubric or file path (llm_rubric)
+    model?: string;                               // model override, e.g. 'claude-sonnet-4-20250514' or 'gemini-3-flash-preview'
+    provider?: 'gemini' | 'anthropic' | 'openai'; // which LLM API to call (default: 'gemini')
     weight: number;
 }
 
@@ -56,6 +57,7 @@ export interface EvalTaskConfig {
     trials?: number;
     timeout?: number;
     grader_model?: string;
+    grader_provider?: 'gemini' | 'anthropic' | 'openai';
     docker?: DockerConfig;
     environment?: Partial<EnvironmentConfig>;
 }
@@ -67,7 +69,8 @@ export interface EvalDefaults {
     trials: number;
     timeout: number;
     threshold: number;  // for --ci mode
-    grader_model?: string;  // default LLM grader model
+    grader_model?: string;      // default LLM grader model
+    grader_provider?: 'gemini' | 'anthropic' | 'openai';  // default LLM grader provider
     acp?: AcpConfig;    // ACP agent configuration
     docker: DockerConfig;
     environment: EnvironmentConfig;
@@ -92,7 +95,8 @@ export interface ResolvedTask {
     provider: string;
     trials: number;
     timeout: number;
-    grader_model?: string;  // inherited default model for LLM graders
+    grader_model?: string;                                      // inherited default model for LLM graders
+    grader_provider?: 'gemini' | 'anthropic' | 'openai';        // inherited default provider for LLM graders
     acp?: AcpConfig;        // ACP agent configuration
     docker: DockerConfig;
     environment: EnvironmentConfig;
@@ -100,9 +104,10 @@ export interface ResolvedTask {
 
 export interface ResolvedGrader {
     type: 'deterministic' | 'llm_rubric';
-    setup?: string;     // resolved setup commands
-    run?: string;       // resolved content for deterministic
-    rubric?: string;    // resolved content for llm_rubric
-    model?: string;     // LLM model override
+    setup?: string;                               // resolved setup commands
+    run?: string;                                 // resolved content for deterministic
+    rubric?: string;                              // resolved content for llm_rubric
+    model?: string;                               // resolved model override
+    provider?: 'gemini' | 'anthropic' | 'openai'; // which LLM API to call (default: 'gemini')
     weight: number;
 }
