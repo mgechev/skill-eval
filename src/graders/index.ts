@@ -217,13 +217,13 @@ Respond with ONLY a JSON object: {"score": <number>, "reasoning": "<brief explan
     }
 
     private parseResponse(text: string, config: GraderConfig): GraderResult {
-        try {
-            // Strip markdown code fences if present
-            let cleaned = text.replace(/```(?:json)?\s*/g, '').replace(/```/g, '').trim();
+        // Strip markdown code fences if present
+        let cleaned = text.replace(/```(?:json)?\s*/g, '').replace(/```/g, '').trim();
 
-            // Extract JSON from response
-            const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
-            if (jsonMatch) {
+        // Try to extract and parse JSON
+        const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+            try {
                 const parsed = JSON.parse(jsonMatch[0]);
                 const score = Math.max(0, Math.min(1, parseFloat(parsed.score) || 0));
                 return {
@@ -232,20 +232,38 @@ Respond with ONLY a JSON object: {"score": <number>, "reasoning": "<brief explan
                     weight: config.weight,
                     details: parsed.reasoning || 'No reasoning provided'
                 };
-            }
-        } catch (e) {
-            // JSON parse failed — try to extract score from truncated response
-            const scoreMatch = text.match(/"score"\s*:\s*([\d.]+)/);
-            if (scoreMatch) {
-                const score = Math.max(0, Math.min(1, parseFloat(scoreMatch[1]) || 0));
-                return {
-                    grader_type: 'llm_rubric',
-                    score,
-                    weight: config.weight,
-                    details: 'Parsed score from truncated LLM response'
-                };
+            } catch (e) {
+                // JSON parse failed, likely truncated or malformed - try to extract score anyway
+                const scoreMatch = jsonMatch[0].match(/"score"\s*:\s*([\d.]+)/);
+                if (scoreMatch) {
+                    const score = Math.max(0, Math.min(1, parseFloat(scoreMatch[1]) || 0));
+                    // Try to extract partial reasoning if available
+                    const reasoningMatch = jsonMatch[0].match(/"reasoning"\s*:\s*"([^"]*)/);
+                    const reasoning = reasoningMatch
+                        ? reasoningMatch[1] + '... (response truncated)'
+                        : 'Score extracted from incomplete LLM response';
+                    return {
+                        grader_type: 'llm_rubric',
+                        score,
+                        weight: config.weight,
+                        details: reasoning
+                    };
+                }
             }
         }
+
+        // No JSON found at all - try to extract score from plain text
+        const scoreMatch = text.match(/"score"\s*:\s*([\d.]+)|score[:\s]+(\d+\.?\d*)/i);
+        if (scoreMatch) {
+            const score = Math.max(0, Math.min(1, parseFloat(scoreMatch[1] || scoreMatch[2]) || 0));
+            return {
+                grader_type: 'llm_rubric',
+                score,
+                weight: config.weight,
+                details: 'Score extracted from malformed LLM response'
+            };
+        }
+
         return { grader_type: 'llm_rubric', score: 0, weight: config.weight, details: `Failed to parse LLM response: ${text.substring(0, 200)}` };
     }
 }
