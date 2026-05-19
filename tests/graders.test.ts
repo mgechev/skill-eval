@@ -288,6 +288,56 @@ describe('LLMGrader', () => {
 
       globalThis.fetch = originalFetch;
     });
+
+    it('handles truncated JSON missing closing braces in LLM response', async () => {
+      mockPathExists.mockResolvedValue(true as any);
+      mockReadFile.mockResolvedValue('rubric content' as any);
+
+      const originalFetch = globalThis.fetch;
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        json: () => Promise.resolve({
+          candidates: [{
+            content: {
+              parts: [{ text: '```json\n{"score": 0.45, "reasoning": "some reasonin\n}\n```' }],
+            },
+          }],
+        }),
+      } as any);
+
+      const provider = makeProvider('');
+      const env = { GEMINI_API_KEY: 'test-key' };
+      const result = await grader.grade('/workspace', provider, baseConfig, '/task', [], env);
+
+      expect(result.score).toBe(0.45);
+      expect(result.details).toContain('some reasonin\n}... (response truncated)');
+
+      globalThis.fetch = originalFetch;
+    });
+
+    it('extracts score from malformed plain text LLM response', async () => {
+      mockPathExists.mockResolvedValue(true as any);
+      mockReadFile.mockResolvedValue('rubric content' as any);
+
+      const originalFetch = globalThis.fetch;
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        json: () => Promise.resolve({
+          candidates: [{
+            content: {
+              parts: [{ text: 'Score: 0.85\n\nThis is a good attempt.' }],
+            },
+          }],
+        }),
+      } as any);
+
+      const provider = makeProvider('');
+      const env = { GEMINI_API_KEY: 'test-key' };
+      const result = await grader.grade('/workspace', provider, baseConfig, '/task', [], env);
+
+      expect(result.score).toBe(0.85);
+      expect(result.details).toContain('Score extracted from malformed LLM response');
+
+      globalThis.fetch = originalFetch;
+    });
   });
 
   describe('anthropic provider', () => {

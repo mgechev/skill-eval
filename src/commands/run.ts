@@ -247,7 +247,7 @@ export async function runEvals(dir: string, opts: RunOptions) {
  * Contains: Dockerfile, workspace files, grader scripts.
  * No longer writes task.toml or instruction.md — those are passed directly.
  */
-async function prepareTempTaskDir(resolved: ResolvedTask, baseDir: string, tmpDir: string) {
+export async function prepareTempTaskDir(resolved: ResolvedTask, baseDir: string, tmpDir: string) {
     await fs.ensureDir(tmpDir);
 
     // Write each deterministic grader script

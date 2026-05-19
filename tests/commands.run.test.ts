@@ -14,6 +14,7 @@ vi.mock('fs-extra', () => ({
 
 import * as fs from 'fs-extra';
 import { ResolvedTask } from '../src/core/config.types';
+import { prepareTempTaskDir } from '../src/commands/run';
 
 // TaskConfig type for testing (not exported from types)
 interface TaskConfig {
@@ -235,5 +236,54 @@ SINGLE='quoted'
       PLAIN: 'text',
       SINGLE: 'quoted',
     });
+  });
+});
+
+describe('prepareTempTaskDir', () => {
+  it('copies workspace files directly to destination for local provider', async () => {
+    const resolved: ResolvedTask = {
+      name: 'test',
+      instruction: 'test',
+      provider: 'local',
+      agent: 'gemini',
+      trials: 1,
+      timeout: 10,
+      docker: { base: 'node' },
+      environment: { cpus: 1, memory_mb: 100 },
+      graders: [],
+      workspace: [{ src: 'src/main.ts', dest: 'app/main.ts' }],
+    };
+
+    mockPathExists.mockResolvedValue(true as any);
+    
+    await prepareTempTaskDir(resolved, '/base', '/tmp/task');
+
+    expect(mockEnsureDir).toHaveBeenCalledWith(path.join('/tmp/task', 'app'));
+    expect(mockCopy).toHaveBeenCalledWith(path.resolve('/base', 'src/main.ts'), path.join('/tmp/task', 'app/main.ts'));
+  });
+
+  it('copies workspace files to root and appends COPY to Dockerfile for docker provider', async () => {
+    const resolved: ResolvedTask = {
+      name: 'test',
+      instruction: 'test',
+      provider: 'docker',
+      agent: 'gemini',
+      trials: 1,
+      timeout: 10,
+      docker: { base: 'node' },
+      environment: { cpus: 1, memory_mb: 100 },
+      graders: [],
+      workspace: [{ src: 'src/main.ts', dest: 'app/main.ts' }],
+    };
+
+    mockPathExists.mockResolvedValue(true as any);
+    
+    await prepareTempTaskDir(resolved, '/base', '/tmp/task');
+
+    expect(mockCopy).toHaveBeenCalledWith(path.resolve('/base', 'src/main.ts'), path.join('/tmp/task', 'main.ts'));
+
+    const dockerfileCall = mockWriteFile.mock.calls.find(c => c[0] === path.join('/tmp/task', 'environment', 'Dockerfile'));
+    expect(dockerfileCall).toBeDefined();
+    expect(dockerfileCall![1]).toContain('COPY main.ts app/main.ts');
   });
 });

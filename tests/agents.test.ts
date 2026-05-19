@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { GeminiAgent } from '../src/agents/gemini';
 import { ClaudeAgent } from '../src/agents/claude';
+import { OpenCodeAgent } from '../src/agents/opencode';
 import { CommandResult } from '../src/types';
 
 beforeEach(() => {
@@ -119,5 +120,58 @@ describe('ClaudeAgent', () => {
 
     const expectedB64 = Buffer.from(instruction).toString('base64');
     expect(capturedCmd).toContain(expectedB64);
+  });
+});
+
+describe('OpenCodeAgent', () => {
+  it('executes correct command with proper escaping', async () => {
+    const agent = new OpenCodeAgent();
+    let executedCommand = '';
+    const mockRunCommand = vi.fn().mockImplementation(async (cmd: string): Promise<CommandResult> => {
+      executedCommand = cmd;
+      return { stdout: 'done', stderr: '', exitCode: 0 };
+    });
+
+    const result = await agent.run('test instruction', '/my/workspace', mockRunCommand);
+
+    expect(result).toContain('done');
+    expect(executedCommand).toContain(`cd '/my/workspace'`);
+    expect(executedCommand).toContain(`echo 'test instruction' | opencode run`);
+  });
+
+  it('escapes single quotes correctly', async () => {
+    const agent = new OpenCodeAgent();
+    let executedCommand = '';
+    const mockRunCommand = vi.fn().mockImplementation(async (cmd: string): Promise<CommandResult> => {
+      executedCommand = cmd;
+      return { stdout: 'done', stderr: '', exitCode: 0 };
+    });
+
+    await agent.run("it's a test", "/work's/place", mockRunCommand);
+
+    expect(executedCommand).toContain(`cd '/work'\\''s/place'`);
+    expect(executedCommand).toContain(`echo 'it'\\''s a test'`);
+  });
+
+  it('includes model flag when configured', async () => {
+    const agent = new OpenCodeAgent({ model: 'anthropic/claude-3-opus' });
+    let executedCommand = '';
+    const mockRunCommand = vi.fn().mockImplementation(async (cmd: string): Promise<CommandResult> => {
+      executedCommand = cmd;
+      return { stdout: 'done', stderr: '', exitCode: 0 };
+    });
+
+    await agent.run('test', '/workspace', mockRunCommand);
+
+    expect(executedCommand).toContain('--model anthropic/claude-3-opus');
+  });
+
+  it('combines stdout and stderr', async () => {
+    const agent = new OpenCodeAgent();
+    const mockRunCommand = vi.fn().mockResolvedValue({ stdout: 'success', stderr: 'warning', exitCode: 0 });
+
+    const result = await agent.run('test', '/workspace', mockRunCommand);
+    expect(result).toContain('success');
+    expect(result).toContain('warning');
   });
 });
