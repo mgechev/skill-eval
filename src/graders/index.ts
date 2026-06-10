@@ -281,8 +281,13 @@ Respond with ONLY a JSON object: {"score": <number>, "reasoning": "<brief explan
             });
 
             const data = await response.json() as any;
-            const text = data?.choices?.[0]?.message?.content || '';
-            return this.parseResponse(text, config);
+            const msg = data?.choices?.[0]?.message;
+            const text = msg?.content || msg?.reasoning_content || '';
+            const result = this.parseResponse(text, config);
+            if (result.score === 0 && result.details.startsWith('Failed to parse')) {
+                result.details = `Failed to parse LLM response: ${JSON.stringify(data).substring(0, 500)}`;
+            }
+            return result;
         } catch (e) {
             return { grader_type: 'llm_rubric', score: 0, weight: config.weight, details: `OpenAI API error: ${e}` };
         }
