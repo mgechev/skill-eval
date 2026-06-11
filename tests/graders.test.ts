@@ -486,9 +486,55 @@ describe('LLMGrader', () => {
     expect(prompt).toContain('Done!');
     expect(prompt).toContain('deterministic');
 
-    globalThis.fetch = originalFetch;
+      globalThis.fetch = originalFetch;
+    });
+
+    it('falls back to reasoning_content when content is empty', async () => {
+      mockPathExists.mockResolvedValue(true as any);
+      mockReadFile.mockResolvedValue('rubric content' as any);
+
+      const originalFetch = globalThis.fetch;
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        json: () => Promise.resolve({
+          choices: [{ message: { content: '', reasoning_content: '{"score": 0.6, "reasoning": "via reasoning"}' } }],
+        }),
+      } as any);
+
+      const provider = makeProvider('');
+      const env = { OPENAI_API_KEY: 'test-key' };
+      const config: GraderConfig = { ...baseConfig, provider: 'openai' };
+      const result = await grader.grade('/workspace', provider, config, '/task', [], env);
+
+      expect(result.score).toBe(0.6);
+      expect(result.details).toBe('via reasoning');
+
+      globalThis.fetch = originalFetch;
+    });
+
+    it('includes raw response data in error when parsing fails', async () => {
+      mockPathExists.mockResolvedValue(true as any);
+      mockReadFile.mockResolvedValue('rubric content' as any);
+
+      const originalFetch = globalThis.fetch;
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        json: () => Promise.resolve({
+          choices: [{ message: {} }],
+          model: 'deepseek-reasoning',
+        }),
+      } as any);
+
+      const provider = makeProvider('');
+      const env = { OPENAI_API_KEY: 'test-key', OPENAI_BASE_URL: 'http://localhost:11434/v1' };
+      const config: GraderConfig = { ...baseConfig, provider: 'openai' };
+      const result = await grader.grade('/workspace', provider, config, '/task', [], env);
+
+      expect(result.score).toBe(0);
+      expect(result.details).toContain('Failed to parse LLM response');
+      expect(result.details).toContain('deepseek-reasoning');
+
+      globalThis.fetch = originalFetch;
+    });
   });
-});
 
 describe('getGrader', () => {
   it('returns DeterministicGrader for "deterministic"', () => {
