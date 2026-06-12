@@ -13,7 +13,7 @@ Configure shared settings for all tasks.
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| `agent` | string | auto-detect | `gemini`, `claude`, or `codex` |
+| `agent` | string | auto-detect | `gemini`, `claude`, `codex`, `acp`, or `opencode` |
 | `provider` | string | `docker` | `docker` or `local` |
 | `trials` | number | 5 | Number of evaluation trials |
 | `timeout` | number | 300 | Seconds before agent timeout |
@@ -34,6 +34,13 @@ Configure shared settings for all tasks.
 |-----|------|---------|-------------|
 | `cpus` | number | 2 | CPU cores allocated to the container |
 | `memory_mb` | number | 2048 | Memory in megabytes |
+
+### defaults.acp
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `command` | string | none | Command to start an ACP-compatible agent |
+| `env` | object | none | Environment variables for the ACP process |
 
 ## tasks
 

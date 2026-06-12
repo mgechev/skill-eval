@@ -64,7 +64,7 @@ export interface EvalTaskConfig {
 
 /** Top-level defaults */
 export interface EvalDefaults {
-    agent: string;      // 'gemini' | 'claude' | 'codex' | 'acp'
+    agent: string;      // 'gemini' | 'claude' | 'codex' | 'acp' | 'opencode'
     provider: string;   // 'docker' | 'local'
     trials: number;
     timeout: number;

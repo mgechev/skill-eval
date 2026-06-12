@@ -25,7 +25,7 @@ interface RunOptions {
     ci?: boolean;
     threshold?: number;
     preset?: 'smoke' | 'reliable' | 'regression';
-    agent?: string;      // override agent (gemini|claude|codex|acp|openode)
+    agent?: string;      // override agent (gemini|claude|codex|acp|opencode)
     provider?: string;   // override provider (docker|local)
     output?: string;     // output directory for reports and temp files
     grader?: string;     // filter graders by type (deterministic|llm_rubric)
