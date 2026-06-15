@@ -79,7 +79,7 @@ version: "1"
 # skill: path/to/my-skill
 
 defaults:
-  agent: gemini          # gemini | claude | codex | acp
+  agent: gemini          # gemini | claude | codex | acp | opencode
   provider: docker       # docker | local
   trials: 5
   timeout: 300           # seconds

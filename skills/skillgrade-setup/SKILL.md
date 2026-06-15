@@ -37,8 +37,10 @@ description: Sets up and runs skillgrade evaluation pipelines for Agent Skills. 
 4. Run multiple evals: `skillgrade --eval=fix-linting,write-tests`.
 5. Run only deterministic graders (skip LLM calls): `skillgrade --grader=deterministic`.
 6. Run only LLM rubric graders: `skillgrade --grader=llm_rubric`.
-7. The agent is auto-detected from the API key. Override with `--agent=gemini|claude|codex`.
-8. Override the provider with `--provider=docker|local`.
+7. The agent is auto-detected from the API key. Override with `--agent=gemini|claude|codex|acp|opencode`.
+8. For ACP, pass `--acp-command="gemini --acp"` or set `defaults.acp.command`.
+9. For OpenCode, pass `--opencode-agent=build|plan|explore` or `--opencode-model=provider/model`.
+10. Override the provider with `--provider=docker|local`.
 
 **Step 5: Review Results**
 1. Run `skillgrade preview` for a CLI report.
