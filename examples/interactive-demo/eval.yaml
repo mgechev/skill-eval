@@ -1,0 +1,69 @@
+# Multi-turn interactive evaluation demo
+
+version: "1"
+
+defaults:
+  agent: claude
+  provider: local
+  trials: 1
+  timeout: 300
+
+tasks:
+  - name: interactive-code-fix
+    instruction: |
+      Fix the bugs in app.js. The file has several bugs:
+      1. The add function returns wrong result
+      2. The divide function doesn't handle division by zero
+
+      After each fix, run the tests using: node fixtures/app.test.js
+      Wait for user confirmation before making irreversible changes.
+      When all tests pass, mark the task as complete with: [TASK COMPLETED]
+
+    workspace:
+      - src: app.js
+        dest: app.js
+      - src: fixtures/app.test.js
+        dest: fixtures/app.test.js
+
+    interactive:
+      enabled: true
+      max_turns: 5
+      timeout_per_turn: 60
+
+      input_requests:
+        patterns:
+          - pattern: "\\[NEEDS_INPUT:confirmation\\]"
+            type: confirmation
+            response: "YES, proceed with the fix"
+          - pattern: "\\[NEEDS_INPUT:choice\\]"
+            type: choice
+            response: "A"
+
+      injections:
+        - trigger:
+            type: on_turn
+            turns: [2]
+          injector:
+            type: static
+            content: "Please also verify that all edge cases are handled properly."
+        - trigger:
+            type: on_output_contains
+            pattern: "TEST FAILED"
+          injector:
+            type: static
+            content: "Tests are still failing. Please analyze the error messages and fix the issues."
+
+      stop_conditions:
+        - type: output_matches
+          pattern: "[TASK COMPLETED]"
+        - type: turns_reached
+          turns: 5
+
+    graders:
+      - type: deterministic
+        run: node fixtures/app.test.js 2>&1 | tail -1 | grep -q "4/4 tests passed" && echo '{"score":1.0,"details":"All tests passed"}' || echo '{"score":0.0,"details":"Tests failed"}'
+        weight: 0.7
+
+      - type: llm_rubric
+        rubric: prompts/multi-turn-quality.md
+        weight: 0.3

@@ -11,7 +11,7 @@
 version: "1"
 
 defaults:
-  agent: gemini          # gemini | claude | codex | acp | opencode
+  agent: gemini          # gemini | claude | claude-stream | codex | acp | opencode
   provider: docker       # docker | local (use local for quick iteration)
   trials: 5              # number of independent runs per task
   timeout: 300           # seconds before agent is killed
@@ -59,3 +59,17 @@ tasks:
 
     # Optional: reference solution for --validate
     # solution: solutions/solve.sh
+
+    # Optional: multi-turn interactive evaluation
+    # interactive:
+    #   enabled: true
+    #   max_turns: 5
+    #   timeout_per_turn: 60
+    #   input_requests:
+    #     patterns:
+    #       - pattern: "\\[NEEDS_INPUT:confirmation\\]"
+    #         type: confirmation
+    #         response: "YES"
+    #   stop_conditions:
+    #     - type: output_matches
+    #       pattern: "[TASK COMPLETED]"

@@ -21,7 +21,7 @@ export interface GraderResult {
 }
 
 export interface LogEntry {
-    type: 'agent_start' | 'command' | 'agent_result' | 'grader' | 'reward';
+    type: 'agent_start' | 'command' | 'agent_result' | 'grader' | 'reward' | 'turn_start' | 'turn_end' | 'input_injected' | 'error';
     timestamp: string;
     instruction?: string;
     command?: string;
@@ -31,6 +31,15 @@ export interface LogEntry {
     output?: string;
     value?: number;
     grader_result?: GraderResult;
+    duration_ms?: number;
+    turn_id?: number;
+    input_type?: string;
+    input_content?: string;
+    cwd?: string;
+    error_type?: string;
+    error_message?: string;
+    task_path?: string;
+    workspace_path?: string;
 }
 
 export interface TrialResult {
@@ -45,6 +54,9 @@ export interface TrialResult {
     // Skill trigger tracking
     skills_triggered?: SkillTriggerInfo[];  // List of triggered skills
     tools_used?: string[];                  // List of tools used
+    // Multi-turn interactive session data
+    turns?: TurnResult[];
+    conversation?: ConversationMessage[];
 }
 
 /** Skill trigger information during agent execution */
@@ -64,6 +76,27 @@ export interface AgentResult {
     num_turns?: number;                     // Number of API interaction turns
     duration_api_ms?: number;               // API duration in milliseconds
     cost_usd?: number;                      // Cost in USD
+}
+
+/** Conversation message for multi-turn sessions */
+export interface ConversationMessage {
+    role: 'user' | 'assistant' | 'system';
+    content: string;
+    timestamp: string;
+}
+
+/** Single turn execution result */
+export interface TurnResult {
+    turn_id: number;
+    input: string;
+    output: string;
+    status: 'completed' | 'needs_input' | 'timeout' | 'error';
+    needs_input_type?: string;
+    needs_input_hint?: string;
+    commands_executed: number;
+    duration_ms: number;
+    skills_triggered?: SkillTriggerInfo[];
+    tools_used?: string[];
 }
 
 export interface EvalReport {

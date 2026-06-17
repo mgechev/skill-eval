@@ -124,6 +124,8 @@ export async function runEvals(dir: string, opts: RunOptions) {
             graderModel: resolved.grader_model,
             graderProvider: resolved.grader_provider,
             environment: resolved.environment,
+            interactive: resolved.interactive,
+            taskPath: dir,
         };
 
         // Pick agent: CLI flag > task-level override > auto-detect from API key > default
@@ -141,6 +143,11 @@ export async function runEvals(dir: string, opts: RunOptions) {
             }
         }
         const providerName = opts.provider || resolved.provider;
+
+        // Auto-switch to claude-stream for interactive eval
+        if (resolved.interactive?.enabled && agentName === 'claude') {
+            agentName = 'claude-stream';
+        }
 
         // Build agent config
         const agentConfig: AgentConfig = {};

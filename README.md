@@ -2,7 +2,7 @@
 
 The easiest way to evaluate your [Agent Skills](https://agentskills.io/home). Tests that AI agents correctly discover and use your skills.
 
-See [examples/](examples/) — [superlint](examples/superlint/) (simple) and [angular-modern](examples/angular-modern/) (TypeScript grader).
+See [examples/](examples/) — [superlint](examples/superlint/) (simple), [angular-modern](examples/angular-modern/) (TypeScript grader), and [interactive-demo](examples/interactive-demo/) (multi-turn).
 
 ![Browser Preview](https://raw.githubusercontent.com/mgechev/skillgrade/main/assets/browser-preview.png)
 
@@ -59,7 +59,7 @@ Reports are saved to `$TMPDIR/skillgrade/<skill-name>/results/`. Override with `
 | `--grader=TYPE` | Run only graders of a type (`deterministic` or `llm_rubric`) |
 | `--trials=N` | Override trial count |
 | `--parallel=N` | Run trials concurrently |
-| `--agent=gemini\|claude\|codex\|acp\|opencode` | Override agent (default: auto-detect from API key) |
+| `--agent=gemini\|claude\|claude-stream\|codex\|acp\|opencode` | Override agent (default: auto-detect from API key) |
 | `--provider=docker\|local` | Override provider |
 | `--acp-command=CMD` | ACP agent command (e.g., `gemini --acp`) |
 | `--opencode-agent=NAME` | OpenCode agent (build\|plan\|explore) |
@@ -79,7 +79,7 @@ version: "1"
 # skill: path/to/my-skill
 
 defaults:
-  agent: gemini          # gemini | claude | codex | acp | opencode
+  agent: gemini          # gemini | claude | claude-stream | codex | acp | opencode
   provider: docker       # docker | local
   trials: 5
   timeout: 300           # seconds
@@ -127,6 +127,27 @@ tasks:
     grader_provider: anthropic   # override default LLM grader provider
     trials: 10
     timeout: 600
+
+    # Multi-turn interactive evaluation (optional)
+    interactive:
+      enabled: true
+      max_turns: 5
+      timeout_per_turn: 60
+      input_requests:
+        patterns:
+          - pattern: "\\[NEEDS_INPUT:confirmation\\]"
+            type: confirmation
+            response: "YES"
+      injections:
+        - trigger:
+            type: on_turn
+            turns: [2]
+          injector:
+            type: static
+            content: "Please verify edge cases too."
+      stop_conditions:
+        - type: output_matches
+          pattern: "[TASK COMPLETED]"
 ```
 
 String values (`instruction`, `rubric`, `run`) support **file references** — if the value is a valid file path, its contents are read automatically:
@@ -346,6 +367,102 @@ Any agent that supports the ACP protocol can be used:
 | `--acp-command=CMD` | Command to start the ACP agent |
 
 The `--acp-command` can also be set in `eval.yaml` under `defaults.acp.command`.
+
+## Interactive Evaluation (Multi-Turn)
+
+For skills that require back-and-forth conversation, interactive evaluation runs a multi-turn session where the agent exchanges messages with simulated user inputs.
+
+See the [interactive-demo](examples/interactive-demo/) example.
+
+### Quick Start
+
+Add `interactive` to a task in `eval.yaml`:
+
+```yaml
+tasks:
+  - name: interactive-code-fix
+    instruction: |
+      Fix the bugs in app.js. After each fix, wait for confirmation.
+      When done, output: [TASK COMPLETED]
+    interactive:
+      enabled: true
+      max_turns: 5
+      timeout_per_turn: 60
+```
+
+When `interactive.enabled` is true and the agent is `claude`, skillgrade automatically uses the `claude-stream` agent which maintains a persistent process for true multi-turn conversation. Other agents fall back to prompt-based context passing.
+
+### Configuration Reference
+
+```yaml
+interactive:
+  enabled: true              # enable multi-turn mode
+  max_turns: 10              # maximum conversation turns (default: 10)
+  timeout_per_turn: 60       # per-turn timeout in seconds (optional)
+
+  # Context passing (for non-streaming agents)
+  context:
+    max_history_turns: 10    # history turns to include (default: 10)
+    include_system_prompt: false
+    system_prompt: "Optional system prompt"
+
+  # Auto-respond when agent requests input
+  input_requests:
+    patterns:
+      - pattern: "\\[NEEDS_INPUT:confirmation\\]"
+        type: confirmation
+        response: "YES"
+      - pattern: "\\[NEEDS_INPUT:choice\\]"
+        type: choice
+        response: "A"
+
+  # Inject input at specific points
+  injections:
+    - trigger:
+        type: on_turn        # on_turn | on_output_contains | on_needs_input | on_command
+        turns: [2, 4]
+      injector:
+        type: static         # static | file
+        content: "Feedback text"
+    - trigger:
+        type: on_output_contains
+        pattern: "TEST FAILED"
+      injector:
+        type: file
+        file: fixtures/feedback-{turn}.txt  # {turn} is replaced with turn number
+
+  # Stop conditions
+  stop_conditions:
+    - type: output_matches
+      pattern: "[TASK COMPLETED]"
+    - type: turns_reached
+      turns: 5
+    - type: command_executed
+      command: "exit"
+```
+
+### Trigger Types
+
+| Type | Description | Parameters |
+|------|-------------|------------|
+| `on_turn` | Fire at specific turn numbers | `turns: [2, 4]` |
+| `on_output_contains` | Fire when agent output matches | `pattern: "string"` |
+| `on_needs_input` | Fire when agent requests input | `input_type: "confirmation"` (optional) |
+| `on_command` | Fire when a command is executed | `command_pattern: "string"` |
+
+### Agent Output Markers
+
+Agents can signal input requests using markers in their output:
+
+| Marker | Type |
+|--------|------|
+| `[NEEDS_INPUT:confirmation]` | Request yes/no confirmation |
+| `[NEEDS_INPUT:choice]` | Request a choice selection |
+| `[NEEDS_INPUT:generic]` | Request any text input |
+| `[WAITING_FOR_USER]` | Generic wait for input |
+| `[AWAITING_CONFIRMATION]` | Wait for confirmation |
+
+Chinese markers are also supported: `等待用户确认:`, `等待用户输入:`, `请确认是否`, `请选择`.
 
 ## Best Practices
 

@@ -1,4 +1,4 @@
-import { GraderConfig, GraderResult, EnvironmentProvider } from '../types';
+import { GraderConfig, GraderResult, EnvironmentProvider, TurnResult, ConversationMessage } from '../types';
 import * as fs from 'fs-extra';
 import * as path from 'path';
 
@@ -126,19 +126,47 @@ export class LLMGrader implements Grader {
             sections.push(`## Task Instruction\n${instructionEntry.instruction}`);
         }
 
-        // Include all commands and their output
-        const commandEntries = sessionLog.filter(e => e.type === 'command');
-        if (commandEntries.length > 0) {
-            const cmds = commandEntries.map(e =>
-                `$ ${e.command}\n${e.stdout || ''}${e.stderr ? '\nSTDERR: ' + e.stderr : ''}\n[exit code: ${e.exitCode ?? 'unknown'}]`
-            ).join('\n\n');
-            sections.push(`## Commands Executed\n${cmds}`);
-        }
+        // Check for multi-turn conversation data
+        const turnsData = (sessionLog as any).turns as TurnResult[] | undefined;
+        const conversationData = (sessionLog as any).conversation as ConversationMessage[] | undefined;
 
-        // Include agent output
-        const agentEntry = sessionLog.find(e => e.type === 'agent_result');
-        if (agentEntry?.output) {
-            sections.push(`## Agent Output\n${agentEntry.output}`);
+        if (turnsData && turnsData.length > 0) {
+            sections.push(`## Multi-Turn Conversation (${turnsData.length} turns)`);
+
+            for (const turn of turnsData) {
+                const turnHeader = `### Turn ${turn.turn_id} [${turn.status}]`;
+                const inputSection = `**User Input:**\n${turn.input}`;
+                const outputSection = `**Agent Output:**\n${turn.output.substring(0, 2000)}${turn.output.length > 2000 ? '...(truncated)' : ''}`;
+
+                let turnSection = `${turnHeader}\n\n${inputSection}\n\n${outputSection}`;
+
+                if (turn.needs_input_hint) {
+                    turnSection += `\n\n*Agent requested: ${turn.needs_input_type || 'input'} - ${turn.needs_input_hint}*`;
+                }
+
+                sections.push(turnSection);
+            }
+
+            if (conversationData && conversationData.length > 0) {
+                const conversationText = conversationData.map(msg =>
+                    `**${msg.role.toUpperCase()}:** ${msg.content.substring(0, 500)}${msg.content.length > 500 ? '...(truncated)' : ''}`
+                ).join('\n\n');
+                sections.push(`## Full Conversation History\n${conversationText}`);
+            }
+        } else {
+            // Single-turn mode: original logic
+            const commandEntries = sessionLog.filter(e => e.type === 'command');
+            if (commandEntries.length > 0) {
+                const cmds = commandEntries.map(e =>
+                    `$ ${e.command}\n${e.stdout || ''}${e.stderr ? '\nSTDERR: ' + e.stderr : ''}\n[exit code: ${e.exitCode ?? 'unknown'}]`
+                ).join('\n\n');
+                sections.push(`## Commands Executed\n${cmds}`);
+            }
+
+            const agentEntry = sessionLog.find(e => e.type === 'agent_result');
+            if (agentEntry?.output) {
+                sections.push(`## Agent Output\n${agentEntry.output}`);
+            }
         }
 
         // Include results from any prior graders (e.g., deterministic tests)
@@ -154,9 +182,14 @@ export class LLMGrader implements Grader {
 
         const transcript = sections.join('\n\n');
 
+        const isMultiTurn = turnsData && turnsData.length > 0;
+        const contextHint = isMultiTurn
+            ? `IMPORTANT CONTEXT: This is a multi-turn interactive session. The agent had multiple rounds of interaction with simulated user inputs. Evaluate the entire conversation flow, including how the agent handled user feedback and adapted its responses.`
+            : `IMPORTANT CONTEXT: The agent runs inside a CLI wrapper (e.g., Gemini CLI). The agent's tool calls (file edits, shell commands) appear as text in the "Agent Output" section. This is a real execution trace, not hallucination — the "Commands Executed" section shows the CLI invocation and its captured output. The "Prior Grader Results" section shows objective automated test results that verify the actual filesystem state after the agent ran.`;
+
         const prompt = `You are an evaluation judge. Score the following agent session on a scale from 0.0 to 1.0 based on the rubric below.
 
-IMPORTANT CONTEXT: The agent runs inside a CLI wrapper (e.g., Gemini CLI). The agent's tool calls (file edits, shell commands) appear as text in the "Agent Output" section. This is a real execution trace, not hallucination — the "Commands Executed" section shows the CLI invocation and its captured output. The "Prior Grader Results" section shows objective automated test results that verify the actual filesystem state after the agent ran.
+${contextHint}
 
 ## Rubric
 ${rubric}
