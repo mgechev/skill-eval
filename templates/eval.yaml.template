@@ -11,7 +11,8 @@
 version: "1"
 
 defaults:
-  agent: gemini          # gemini | claude | codex | acp | opencode
+  agent: gemini          # gemini | claude | codex | acp | opencode | command
+  # command: node mycli.js  # required when agent is 'command' — run your own agent CLI
   provider: docker       # docker | local (use local for quick iteration)
   trials: 5              # number of independent runs per task
   timeout: 300           # seconds before agent is killed

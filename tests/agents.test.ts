@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { GeminiAgent } from '../src/agents/gemini';
 import { ClaudeAgent } from '../src/agents/claude';
 import { OpenCodeAgent } from '../src/agents/opencode';
+import { CommandAgent } from '../src/agents/command';
 import { CommandResult } from '../src/types';
 
 beforeEach(() => {
@@ -173,5 +174,54 @@ describe('OpenCodeAgent', () => {
     const result = await agent.run('test', '/workspace', mockRunCommand);
     expect(result).toContain('success');
     expect(result).toContain('warning');
+  });
+});
+
+describe('CommandAgent', () => {
+  it('throws when no command is provided', () => {
+    expect(() => new CommandAgent({ command: '' })).toThrow('Command agent requires a command');
+    // @ts-expect-error - exercising the runtime guard with a missing config
+    expect(() => new CommandAgent(undefined)).toThrow('Command agent requires a command');
+  });
+
+  it('writes instruction via base64 and pipes it to the command stdin by default', async () => {
+    const agent = new CommandAgent({ command: 'node mycli.js' });
+    const commands: string[] = [];
+    const mockRunCommand = vi.fn().mockImplementation(async (cmd: string): Promise<CommandResult> => {
+      commands.push(cmd);
+      return { stdout: 'output', stderr: '', exitCode: 0 };
+    });
+
+    const result = await agent.run('Test instruction', '/workspace', mockRunCommand);
+
+    expect(commands).toHaveLength(2);
+    expect(commands[0]).toContain('base64 -d > /tmp/.prompt.md');
+    expect(commands[1]).toContain("cd '/workspace'");
+    expect(commands[1]).toContain('cat /tmp/.prompt.md | node mycli.js');
+    expect(result).toContain('output');
+  });
+
+  it('escapes single quotes in the workspace path', async () => {
+    const agent = new CommandAgent({ command: 'run' });
+    let executedCommand = '';
+    const mockRunCommand = vi.fn().mockImplementation(async (cmd: string): Promise<CommandResult> => {
+      executedCommand = cmd;
+      return { stdout: 'ok', stderr: '', exitCode: 0 };
+    });
+
+    await agent.run('test', "/work's/place", mockRunCommand);
+
+    expect(executedCommand).toContain(`cd '/work'\\''s/place'`);
+  });
+
+  it('combines stdout and stderr and tolerates a non-zero exit', async () => {
+    const agent = new CommandAgent({ command: 'run' });
+    const mockRunCommand = vi.fn()
+      .mockResolvedValueOnce({ stdout: '', stderr: '', exitCode: 0 })
+      .mockResolvedValueOnce({ stdout: 'partial', stderr: 'error', exitCode: 1 });
+
+    const result = await agent.run('test', '/workspace', mockRunCommand);
+    expect(result).toContain('partial');
+    expect(result).toContain('error');
   });
 });

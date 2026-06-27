@@ -25,11 +25,12 @@ interface RunOptions {
     ci?: boolean;
     threshold?: number;
     preset?: 'smoke' | 'reliable' | 'regression';
-    agent?: string;      // override agent (gemini|claude|codex|acp|opencode)
+    agent?: string;      // override agent (gemini|claude|codex|acp|opencode|command)
     provider?: string;   // override provider (docker|local)
     output?: string;     // output directory for reports and temp files
     grader?: string;     // filter graders by type (deterministic|llm_rubric)
     acpCommand?: string; // ACP agent command (e.g., "gemini --acp")
+    command?: string;    // command agent command (e.g., "node mycli.js")
     openCodeAgent?: string;   // OpenCode agent (build|plan|explore)
     openCodeModel?: string;   // OpenCode model (provider/model format)
 }
@@ -162,6 +163,12 @@ export async function runEvals(dir: string, opts: RunOptions) {
             if (opts.openCodeModel) {
                 agentConfig.opencode.model = opts.openCodeModel;
             }
+        } else if (agentName === 'command') {
+            const command = opts.command || resolved.command;
+            if (!command) {
+                throw new Error('Command agent requires a command. Specify via --command or command in eval.yaml');
+            }
+            agentConfig.command = { command };
         }
 
         // Pick provider
@@ -302,6 +309,8 @@ export async function prepareTempTaskDir(resolved: ResolvedTask, baseDir: string
     } else if (resolved.agent === 'opencode') {
         dockerfileContent += `RUN npm install -g opencode\n\n`;
     }
+    // The 'command' agent brings its own binary — install it via docker.setup
+    // below, or use `provider: local` to run a command on the host.
 
     // Docker setup commands
     if (resolved.docker.setup) {

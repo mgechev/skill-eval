@@ -13,7 +13,8 @@ Configure shared settings for all tasks.
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| `agent` | string | auto-detect | `gemini`, `claude`, `codex`, `acp`, or `opencode` |
+| `agent` | string | auto-detect | `gemini`, `claude`, `codex`, `acp`, `opencode`, or `command` |
+| `command` | string | none | Command to run when `agent` is `command` (e.g. `node mycli.js`). Required for the `command` agent. |
 | `provider` | string | `docker` | `docker` or `local` |
 | `trials` | number | 5 | Number of evaluation trials |
 | `timeout` | number | 300 | Seconds before agent timeout |
@@ -53,6 +54,7 @@ Array of evaluation tasks. Each task has:
 | `workspace` | array | No | Files copied into the container |
 | `graders` | array | Yes | One or more grader definitions |
 | `agent` | string | No | Per-task agent override |
+| `command` | string | No | Per-task command override (for the `command` agent) |
 | `trials` | number | No | Per-task trial count override |
 | `timeout` | number | No | Per-task timeout override |
 

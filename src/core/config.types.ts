@@ -53,6 +53,7 @@ export interface EvalTaskConfig {
 
     // Per-task overrides
     agent?: string;
+    command?: string;   // command to run when agent is 'command'
     provider?: string;
     trials?: number;
     timeout?: number;
@@ -64,7 +65,8 @@ export interface EvalTaskConfig {
 
 /** Top-level defaults */
 export interface EvalDefaults {
-    agent: string;      // 'gemini' | 'claude' | 'codex' | 'acp' | 'opencode'
+    agent: string;      // 'gemini' | 'claude' | 'codex' | 'acp' | 'opencode' | 'command'
+    command?: string;   // command to run when agent is 'command' (e.g. "node mycli.js")
     provider: string;   // 'docker' | 'local'
     trials: number;
     timeout: number;
@@ -92,6 +94,7 @@ export interface ResolvedTask {
     graders: ResolvedGrader[];
     solution?: string;      // resolved file path
     agent: string;
+    command?: string;       // command to run when agent is 'command'
     provider: string;
     trials: number;
     timeout: number;

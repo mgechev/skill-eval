@@ -243,6 +243,43 @@ tasks:
     await expect(loadEvalConfig('/test')).rejects.toThrow('grader_provider must be one of');
   });
 
+  it('rejects the command agent when no command is set', async () => {
+    mockPathExists.mockResolvedValue(true as any);
+    const yaml = `version: "1"
+defaults:
+  agent: command
+tasks:
+  - name: test-task
+    instruction: do it
+    graders:
+      - type: deterministic
+        run: "echo ok"
+`;
+    mockReadFile.mockResolvedValue(yaml as any);
+
+    await expect(loadEvalConfig('/test')).rejects.toThrow('command');
+  });
+
+  it('accepts the command agent with a command in defaults', async () => {
+    mockPathExists.mockResolvedValue(true as any);
+    const yaml = `version: "1"
+defaults:
+  agent: command
+  command: "node mycli.js"
+tasks:
+  - name: test-task
+    instruction: do it
+    graders:
+      - type: deterministic
+        run: "echo ok"
+`;
+    mockReadFile.mockResolvedValue(yaml as any);
+
+    const config = await loadEvalConfig('/test');
+    expect(config.defaults.agent).toBe('command');
+    expect(config.defaults.command).toBe('node mycli.js');
+  });
+
   it('rejects invalid provider on individual grader', async () => {
     mockPathExists.mockResolvedValue(true as any);
     const yaml = `version: "1"
@@ -529,5 +566,39 @@ describe('resolveTask', () => {
 
     const resolved = await resolveTask(task, defaults, '/base');
     expect(resolved.graders[0].setup).toBe('npm install -g typescript');
+  });
+
+  it('inherits the command from defaults for the command agent', async () => {
+    const commandDefaults: EvalDefaults = {
+      ...defaults,
+      agent: 'command',
+      command: 'node mycli.js',
+    };
+    const task: EvalTaskConfig = {
+      name: 'test-task',
+      instruction: 'multi\nline',
+      graders: [{ type: 'deterministic', run: 'echo ok', weight: 1.0 }],
+    };
+
+    const resolved = await resolveTask(task, commandDefaults, '/base');
+    expect(resolved.agent).toBe('command');
+    expect(resolved.command).toBe('node mycli.js');
+  });
+
+  it('lets a task override the command', async () => {
+    const commandDefaults: EvalDefaults = {
+      ...defaults,
+      agent: 'command',
+      command: 'node default.js',
+    };
+    const task: EvalTaskConfig = {
+      name: 'test-task',
+      instruction: 'multi\nline',
+      command: 'node override.js',
+      graders: [{ type: 'deterministic', run: 'echo ok', weight: 1.0 }],
+    };
+
+    const resolved = await resolveTask(task, commandDefaults, '/base');
+    expect(resolved.command).toBe('node override.js');
   });
 });
