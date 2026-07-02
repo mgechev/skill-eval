@@ -59,9 +59,10 @@ Reports are saved to `$TMPDIR/skillgrade/<skill-name>/results/`. Override with `
 | `--grader=TYPE` | Run only graders of a type (`deterministic` or `llm_rubric`) |
 | `--trials=N` | Override trial count |
 | `--parallel=N` | Run trials concurrently |
-| `--agent=gemini\|claude\|claude-stream\|codex\|acp\|opencode` | Override agent (default: auto-detect from API key) |
+| `--agent=gemini\|claude\|claude-stream\|codex\|acp\|opencode\|command` | Override agent (default: auto-detect from API key) |
 | `--provider=docker\|local` | Override provider |
 | `--acp-command=CMD` | ACP agent command (e.g., `gemini --acp`) |
+| `--command=CMD` | Command to run for the `command` agent (e.g., `node mycli.js`) |
 | `--opencode-agent=NAME` | OpenCode agent (build\|plan\|explore) |
 | `--opencode-model=MODEL` | OpenCode model (provider/model format) |
 | `--output=DIR` | Output directory (default: `$TMPDIR/skillgrade`) |
@@ -79,13 +80,14 @@ version: "1"
 # skill: path/to/my-skill
 
 defaults:
-  agent: gemini          # gemini | claude | claude-stream | codex | acp | opencode
+  agent: gemini          # gemini | claude | claude-stream | codex | acp | opencode | command
   provider: docker       # docker | local
   trials: 5
   timeout: 300           # seconds
   threshold: 0.8         # for --ci mode
   grader_model: gemini-3-flash-preview  # default LLM grader model
   grader_provider: gemini               # default LLM grader provider: gemini | anthropic | openai
+  command: node mycli.js # command to run when agent is 'command' (see Custom Command Agent)
   acp:                   # ACP agent configuration (optional)
     command: gemini --acp  # command to start ACP-compatible agent
     env:                  # optional environment variables
@@ -273,6 +275,47 @@ Exits with code 1 if pass rate falls below `--threshold` (default: 0.8).
 | `OPENAI_BASE_URL` | LLM grading (`provider: openai`) — custom OpenAI-compatible endpoint (Ollama, vLLM, etc.) |
 
 Variables are also loaded from `.env` in the skill directory. Shell values override `.env`. All values are **redacted** from persisted session logs.
+
+## Custom Command Agent
+
+Bring your own agent. The built-in adapters (`gemini`, `claude`, `codex`, ...) cover the popular CLIs, but you can point skillgrade at **any command** — a custom script, a [deepagents](https://github.com/langchain-ai/deepagents) loop, or a small orchestrator over the Claude/OpenAI SDKs — without forking the package or implementing an ACP server.
+
+### Quick Start
+
+```bash
+skillgrade --agent=command --command="node mycli.js"
+```
+
+Or in `eval.yaml`:
+
+```yaml
+defaults:
+  agent: command
+  command: "node mycli.js"
+  provider: local        # run on the host; or use docker + docker.setup to install your CLI
+```
+
+`command` can also be set per task to override the default.
+
+### How the instruction reaches your command
+
+The task instruction is **piped to your command's stdin** (skillgrade writes it to `/tmp/.prompt.md`, then runs `cat /tmp/.prompt.md | <command>` inside the workspace directory). If your CLI takes the prompt as an argument instead, wrap it in a one-line script that reads stdin.
+
+Your command runs in the workspace and is free to read/edit files there — graders score the resulting workspace state (and any live checks), not your command's stdout, so any agent slots in cleanly.
+
+### Docker vs local
+
+- **`provider: local`** is the simplest fit for a custom agent: your command runs on the host with your tools already installed.
+- **`provider: docker`** still works — skillgrade does **not** auto-install anything for the `command` agent, so install your CLI and dependencies via `docker.setup`:
+
+```yaml
+defaults:
+  agent: command
+  command: "mycli run"
+  docker:
+    base: node:20-slim
+    setup: "npm install -g my-cli-package"
+```
 
 ## OpenCode Agent
 

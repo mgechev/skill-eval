@@ -116,6 +116,13 @@ function validateConfig(raw: any): EvalConfig {
             throw new Error(`Task "${t.name}" has invalid grader_provider "${t.grader_provider}", must be one of ${validGraderProviders.join(', ')}`);
         }
 
+        // The "command" agent requires a command (per-task override or inherited default)
+        const effectiveAgent = t.agent || defaults.agent;
+        const effectiveCommand = t.command || defaults.command;
+        if (effectiveAgent === 'command' && !effectiveCommand) {
+            throw new Error(`Task "${t.name}" uses the "command" agent but no command is set (add a "command" to the task or defaults)`);
+        }
+
         const workspace: WorkspaceMapping[] = (t.workspace || []).map((w: any) => {
             if (typeof w === 'string') {
                 // Support shorthand: "fixtures/app.js" → same filename in workspace
@@ -147,6 +154,7 @@ function validateConfig(raw: any): EvalConfig {
             }),
             solution: t.solution,
             agent: t.agent,
+            command: t.command,
             provider: t.provider,
             trials: t.trials,
             timeout: t.timeout,
@@ -171,6 +179,7 @@ export async function resolveTask(
 ): Promise<ResolvedTask> {
     // Merge defaults with task overrides
     const agent = task.agent || defaults.agent;
+    const command = task.command || defaults.command;
     const provider = task.provider || defaults.provider;
     const trials = task.trials ?? defaults.trials;
     const timeout = task.timeout ?? defaults.timeout;
@@ -221,6 +230,7 @@ export async function resolveTask(
         graders,
         solution,
         agent,
+        command,
         provider,
         trials,
         timeout,

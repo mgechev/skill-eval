@@ -103,6 +103,7 @@ async function main() {
         grader: getFlag('grader'),
         output: outputDir,
         acpCommand: getFlag('acp-command'),
+        command: getFlag('command'),
         openCodeAgent: getFlag('opencode-agent'),
         openCodeModel: getFlag('opencode-model'),
     });
@@ -132,9 +133,10 @@ function printHelp() {
     --grader=TYPE      Run only graders of this type (deterministic|llm_rubric)
     --trials=N         Override trial count (overrides preset)
     --parallel=N       Run trials concurrently
-    --agent=gemini|claude|codex|acp|opencode   Override agent (default: auto-detect from API key)
+    --agent=gemini|claude|codex|acp|opencode|command   Override agent (default: auto-detect from API key)
     --provider=docker|local Override provider (default: docker)
     --acp-command=CMD  ACP agent command (e.g., "gemini --acp")
+    --command=CMD      Command to run for the 'command' agent (e.g., "node mycli.js")
     --opencode-agent=NAME   OpenCode agent (build|plan|explore)
     --opencode-model=MODEL OpenCode model (provider/model format)
     --output=DIR       Output directory for reports and temp files
