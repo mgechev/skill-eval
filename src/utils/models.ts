@@ -3,7 +3,7 @@
  */
 export async function fetchLatestGeminiModel(apiKey: string): Promise<string> {
   const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`, {
-    signal: AbortSignal.timeout(5000),
+    signal: AbortSignal.timeout(10000),
   });
   if (!res.ok) {
     throw new Error(`Gemini API returned status ${res.status}`);
@@ -54,7 +54,7 @@ export async function fetchLatestOpenAIModel(apiKey: string): Promise<string> {
     headers: {
       'Authorization': `Bearer ${apiKey}`,
     },
-    signal: AbortSignal.timeout(5000),
+    signal: AbortSignal.timeout(10000),
   });
   if (!res.ok) {
     throw new Error(`OpenAI API returned status ${res.status}`);
@@ -98,7 +98,7 @@ export async function fetchLatestAnthropicModel(apiKey: string): Promise<string>
       'x-api-key': apiKey,
       'anthropic-version': '2023-06-01',
     },
-    signal: AbortSignal.timeout(5000),
+    signal: AbortSignal.timeout(10000),
   });
   if (!res.ok) {
     throw new Error(`Anthropic API returned status ${res.status}`);
