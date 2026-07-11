@@ -133,7 +133,7 @@ describe('DeterministicGrader', () => {
 
 describe('LLMGrader', () => {
   const grader = new LLMGrader();
-  const baseConfig: GraderConfig = { type: 'llm_rubric', rubric: 'rubric.md', weight: 1.0 };
+  const baseConfig: GraderConfig = { type: 'llm_rubric', rubric: 'rubric.md', weight: 1.0, model: 'mock-model' };
 
   it('returns score 0 when rubric file not found', async () => {
     mockPathExists.mockResolvedValue(false as any);

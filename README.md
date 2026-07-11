@@ -121,7 +121,7 @@ tasks:
         rubric: |
           Did the agent follow the check → fix → verify workflow?
         provider: gemini                 # optional: gemini (default) | anthropic | openai
-        model: gemini-2.0-flash          # optional model override
+        model: gemini-3.5-flash          # optional model override
         weight: 0.3
 
     # Per-task overrides (optional)
@@ -207,9 +207,9 @@ The `provider` field selects which LLM API to call:
 
 | Provider   | API Key Env Var     | Base URL Env Var (optional) | Default Model              |
 |------------|---------------------|-----------------------------|----------------------------|
-| `gemini`   | `GEMINI_API_KEY`    | -                           | `gemini-3-flash-preview`   |
-| `anthropic`| `ANTHROPIC_API_KEY` | `ANTHROPIC_BASE_URL`        | `claude-sonnet-4-20250514` |
-| `openai`   | `OPENAI_API_KEY`    | `OPENAI_BASE_URL`           | `gpt-4o`                   |
+| `gemini`   | `GEMINI_API_KEY`    | -                           | Dynamically resolved latest Flash model (via API) |
+| `anthropic`| `ANTHROPIC_API_KEY` | `ANTHROPIC_BASE_URL`        | Dynamically resolved latest Haiku model (via API) |
+| `openai`   | `OPENAI_API_KEY`    | `OPENAI_BASE_URL`           | Dynamically resolved latest Mini/Flash model (via API) |
 
 `ANTHROPIC_BASE_URL` and `OPENAI_BASE_URL` enable custom/self-hosted endpoints (Ollama, vLLM, etc.).
 
@@ -252,6 +252,12 @@ Exits with code 1 if pass rate falls below `--threshold` (default: 0.8).
 | `OPENAI_API_KEY` | Agent execution (Codex), LLM grading (`provider: openai`), `skillgrade init` |
 | `ANTHROPIC_BASE_URL` | LLM grading (`provider: anthropic`) — custom Anthropic-compatible endpoint |
 | `OPENAI_BASE_URL` | LLM grading (`provider: openai`) — custom OpenAI-compatible endpoint (Ollama, vLLM, etc.) |
+| `GEMINI_MODEL` | Override the default model used for Gemini LLM grading (defaults to dynamic API lookup; throws if resolution fails) |
+| `INIT_GEMINI_MODEL` | Override the model used for Gemini in `skillgrade init` (defaults to `GEMINI_MODEL` or dynamic API lookup; throws if resolution fails) |
+| `ANTHROPIC_MODEL` | Override the default model used for Anthropic LLM grading (defaults to dynamic API lookup; throws if resolution fails) |
+| `INIT_ANTHROPIC_MODEL` | Override the model used for Anthropic in `skillgrade init` (defaults to `ANTHROPIC_MODEL` or dynamic API lookup; throws if resolution fails) |
+| `OPENAI_MODEL` | Override the default model used for OpenAI LLM grading (defaults to dynamic API lookup; throws if resolution fails) |
+| `INIT_OPENAI_MODEL` | Override the model used for OpenAI in `skillgrade init` (defaults to `OPENAI_MODEL` or dynamic API lookup; throws if resolution fails) |
 
 Variables are also loaded from `.env` in the skill directory. Shell values override `.env`. All values are **redacted** from persisted session logs.
 

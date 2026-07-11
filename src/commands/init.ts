@@ -9,6 +9,7 @@ import * as fs from 'fs-extra';
 import * as path from 'path';
 import { detectSkills } from '../core/skills';
 import { parseEnvFile } from '../utils/env';
+import { resolveGeminiModel, resolveAnthropicModel, resolveOpenAIModel } from '../utils/models';
 
 export async function runInit(dir: string, opts: { force?: boolean } = {}) {
   const evalPath = path.join(dir, 'eval.yaml');
@@ -220,6 +221,7 @@ tasks:
   const fetchOpts = { signal: AbortSignal.timeout(120_000) };
 
   if (provider === 'anthropic') {
+    const model = await resolveAnthropicModel(apiKey, process.env, 'init');
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -228,7 +230,7 @@ tasks:
         'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
+        model,
         max_tokens: 4096,
         messages: [{ role: 'user', content: prompt }],
         temperature: 0.3,
@@ -244,6 +246,7 @@ tasks:
     text = data.content?.[0]?.text;
     if (!text) throw new Error('Empty response from Anthropic API');
   } else if (provider === 'openai') {
+    const model = await resolveOpenAIModel(apiKey, process.env, 'init');
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -251,7 +254,7 @@ tasks:
         'Authorization': `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: 'gpt-4o',
+        model,
         max_tokens: 4096,
         messages: [{ role: 'user', content: prompt }],
         temperature: 0.3,
@@ -267,7 +270,8 @@ tasks:
     text = data.choices?.[0]?.message?.content;
     if (!text) throw new Error('Empty response from OpenAI API');
   } else {
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`, {
+    const model = await resolveGeminiModel(apiKey, process.env, 'init');
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

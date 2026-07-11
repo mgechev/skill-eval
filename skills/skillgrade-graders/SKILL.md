@@ -43,7 +43,7 @@ description: Authors deterministic and LLM rubric graders for skillgrade evaluat
        [rubric text or file path]
      weight: 0.3
      provider: gemini               # optional: gemini (default) | anthropic | openai
-     model: gemini-3-flash-preview  # optional, each provider has a default model
+     model: gemini-3.5-flash        # optional model override (defaults to the latest dynamically resolved flash model)
    ```
 4. For long rubrics, store in a separate file and reference by path: `rubric: rubrics/quality.md`.
 
