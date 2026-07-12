@@ -200,6 +200,32 @@ Respond with ONLY a JSON object: {"score": <number>, "reasoning": "<brief explan
         }
     }
 
+    /**
+     * Turn a non-2xx LLM API response into an explicit error result.
+     *
+     * Without this, a 401/404/429 falls through to an empty completion and is
+     * reported as a score-0 "Failed to parse" — a dead API key looks like a
+     * failing eval instead of a broken one.
+     */
+    private async httpError(
+        providerLabel: string,
+        response: Response,
+        config: GraderConfig
+    ): Promise<GraderResult> {
+        let body = '';
+        try {
+            body = (await response.text()).trim().substring(0, 300);
+        } catch {
+            // Body already consumed or unreadable — the status alone is still useful.
+        }
+        return {
+            grader_type: 'llm_rubric',
+            score: 0,
+            weight: config.weight,
+            details: `${providerLabel} API returned HTTP ${response.status}${body ? `: ${body}` : ''}`
+        };
+    }
+
     private async callGemini(prompt: string, model: string, config: GraderConfig, env?: Record<string, string>): Promise<GraderResult> {
         const apiKey = env?.GEMINI_API_KEY || process.env.GEMINI_API_KEY;
         if (!apiKey) {
@@ -221,6 +247,8 @@ Respond with ONLY a JSON object: {"score": <number>, "reasoning": "<brief explan
                     generationConfig: { temperature: 0 }
                 })
             });
+
+            if (!response.ok) return this.httpError('Gemini', response, config);
 
             const data = await response.json() as any;
             const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
@@ -257,6 +285,8 @@ Respond with ONLY a JSON object: {"score": <number>, "reasoning": "<brief explan
                     messages: [{ role: 'user', content: prompt }]
                 })
             });
+
+            if (!response.ok) return this.httpError('Anthropic', response, config);
 
             const data = await response.json() as any;
             // Adaptive thinking is on by default on current Claude models, so the first
@@ -295,6 +325,8 @@ Respond with ONLY a JSON object: {"score": <number>, "reasoning": "<brief explan
                     messages: [{ role: 'user', content: prompt }],
                 }),
             });
+
+            if (!response.ok) return this.httpError('OpenAI', response, config);
 
             const data = await response.json() as any;
             const msg = data?.choices?.[0]?.message;

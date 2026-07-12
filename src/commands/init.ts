@@ -130,7 +130,20 @@ function extractInstructionHint(skillMd: string): string {
 }
 
 /**
- * Generate eval.yaml content using Gemini API.
+ * Resolve an OpenAI-/Anthropic-compatible base URL from the environment.
+ *
+ * An override that is empty or whitespace is ignored rather than treated as a
+ * real value — otherwise a set-but-empty *_BASE_URL would produce "/messages".
+ * Trailing slashes are stripped so callers can append a path directly.
+ */
+function resolveBaseUrl(envValue: string | undefined, fallback: string): string {
+  const override = envValue?.trim();
+  return (override || fallback).replace(/\/+$/, '');
+}
+
+/**
+ * Generate eval.yaml content using the configured LLM provider
+ * (Gemini, Anthropic, or OpenAI).
  */
 export async function generateWithLLM(
   skills: Array<{ name: string; skillMd: string }>,
@@ -222,7 +235,8 @@ tasks:
 
   if (provider === 'anthropic') {
     const model = await resolveAnthropicModel(apiKey, process.env, 'init');
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
+    const baseUrl = resolveBaseUrl(process.env.ANTHROPIC_BASE_URL, 'https://api.anthropic.com/v1');
+    const response = await fetch(`${baseUrl}/messages`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -233,7 +247,8 @@ tasks:
         model,
         max_tokens: 4096,
         messages: [{ role: 'user', content: prompt }],
-        temperature: 0.3,
+        // No `temperature`: current Claude models (Sonnet 5, Opus 4.7+) reject
+        // sampling parameters with a 400. The grader's Anthropic call omits it too.
       }),
       ...fetchOpts,
     });
@@ -249,7 +264,8 @@ tasks:
     if (!text) throw new Error('Empty response from Anthropic API');
   } else if (provider === 'openai') {
     const model = await resolveOpenAIModel(apiKey, process.env, 'init');
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    const baseUrl = resolveBaseUrl(process.env.OPENAI_BASE_URL, 'https://api.openai.com/v1');
+    const response = await fetch(`${baseUrl}/chat/completions`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
