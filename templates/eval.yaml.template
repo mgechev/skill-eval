@@ -17,6 +17,8 @@ defaults:
   trials: 5              # number of independent runs per task
   timeout: 300           # seconds before agent is killed
   threshold: 0.8         # minimum pass rate for --ci mode
+  # grader_model: claude-sonnet-5   # pin the LLM judge's model (default: latest, resolved via the provider's API)
+  #                                 # env vars override the default too: ANTHROPIC_MODEL / OPENAI_MODEL / GEMINI_MODEL
   docker:
     base: node:20-slim   # base Docker image
     # setup: |            # extra setup commands (uncomment if needed)

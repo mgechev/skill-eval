@@ -19,7 +19,6 @@ export default defineConfig({
         'src/core/config.types.ts',
         'src/types.ts',
         'src/commands/run.ts',
-        'src/commands/init.ts',
       ],
     },
   },

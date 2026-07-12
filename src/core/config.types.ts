@@ -18,7 +18,7 @@ export interface EvalGraderConfig {
     setup?: string;                               // commands to install grader dependencies (runs during image build)
     run?: string;                                 // inline script or file path (deterministic)
     rubric?: string;                              // inline rubric or file path (llm_rubric)
-    model?: string;                               // model override, e.g. 'claude-sonnet-4-20250514' or 'gemini-3-flash-preview'
+    model?: string;                               // model override, e.g. 'claude-sonnet-5' or 'gemini-3-flash-preview'
     provider?: 'gemini' | 'anthropic' | 'openai'; // which LLM API to call (default: 'gemini')
     weight: number;
 }
