@@ -348,7 +348,7 @@ describe('LLMGrader', () => {
       const originalFetch = globalThis.fetch;
       globalThis.fetch = vi.fn().mockResolvedValue({
         json: () => Promise.resolve({
-          content: [{ text: '{"score": 0.85, "reasoning": "good"}' }],
+          content: [{ type: 'text', text: '{"score": 0.85, "reasoning": "good"}' }],
         }),
       } as any);
 
@@ -377,7 +377,7 @@ describe('LLMGrader', () => {
       const originalFetch = globalThis.fetch;
       globalThis.fetch = vi.fn().mockResolvedValue({
         json: () => Promise.resolve({
-          content: [{ text: '{"score": 0.9, "reasoning": "custom endpoint"}' }],
+          content: [{ type: 'text', text: '{"score": 0.9, "reasoning": "custom endpoint"}' }],
         }),
       } as any);
 
@@ -392,6 +392,32 @@ describe('LLMGrader', () => {
         'http://localhost:8080/v1/messages',
         expect.anything()
       );
+
+      globalThis.fetch = originalFetch;
+    });
+
+    it('reads the text block past a leading thinking block', async () => {
+      mockPathExists.mockResolvedValue(true as any);
+      mockReadFile.mockResolvedValue('rubric content' as any);
+
+      // Adaptive thinking is on by default on current Claude models, so the API
+      // prepends a thinking block and content[0] is not the text block.
+      const originalFetch = globalThis.fetch;
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        json: () => Promise.resolve({
+          content: [
+            { type: 'thinking', thinking: '' },
+            { type: 'text', text: '{"score": 0.75, "reasoning": "solid"}' },
+          ],
+        }),
+      } as any);
+
+      const provider = makeProvider('');
+      const env = { ANTHROPIC_API_KEY: 'test-key' };
+      const config: GraderConfig = { ...baseConfig, provider: 'anthropic' };
+      const result = await grader.grade('/workspace', provider, config, '/task', [], env);
+
+      expect(result.score).toBe(0.75);
 
       globalThis.fetch = originalFetch;
     });

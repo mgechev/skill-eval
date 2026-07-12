@@ -1,4 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { generateWithLLM } from '../src/commands/init';
 
 // We test extractInstructionHint and getInlineTemplate
 // These functions are not exported so we need to test them via runInit or replicate them
@@ -135,5 +136,41 @@ tasks:
     const template = getInlineTemplate();
     expect(template).toContain('"score"');
     expect(template).toContain('"details"');
+  });
+});
+
+describe('generateWithLLM — Anthropic', () => {
+  const skills = [{ name: 'my-skill', skillMd: '# My Skill\n\nDoes a thing.' }];
+  const savedEnv = { ...process.env };
+  let originalFetch: typeof globalThis.fetch;
+
+  beforeEach(() => {
+    originalFetch = globalThis.fetch;
+    // Pin the model so resolveAnthropicModel short-circuits instead of hitting /v1/models.
+    process.env.ANTHROPIC_MODEL = 'claude-sonnet-5';
+  });
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+    process.env = { ...savedEnv };
+  });
+
+  it('reads the text block past a leading thinking block', async () => {
+    // Adaptive thinking is on by default on current Claude models, so the API
+    // prepends a thinking block and content[0] is not the text block.
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({
+        content: [
+          { type: 'thinking', thinking: '' },
+          { type: 'text', text: '```yaml\nversion: "1"\ntasks: []\n```' },
+        ],
+      }),
+    }) as any;
+
+    const result = await generateWithLLM(skills, 'test-key', 'anthropic');
+
+    expect(result).toContain('version: "1"');
+    expect(result).not.toContain('```');
   });
 });

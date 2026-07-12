@@ -132,7 +132,7 @@ function extractInstructionHint(skillMd: string): string {
 /**
  * Generate eval.yaml content using Gemini API.
  */
-async function generateWithLLM(
+export async function generateWithLLM(
   skills: Array<{ name: string; skillMd: string }>,
   apiKey: string,
   provider: 'gemini' | 'anthropic' | 'openai' = 'gemini'
@@ -243,7 +243,9 @@ tasks:
     }
 
     const data = await response.json() as any;
-    text = data.content?.[0]?.text;
+    // Adaptive thinking is on by default on current Claude models, so the first
+    // content block may be a thinking block — select the text block explicitly.
+    text = data.content?.find((b: any) => b.type === 'text')?.text;
     if (!text) throw new Error('Empty response from Anthropic API');
   } else if (provider === 'openai') {
     const model = await resolveOpenAIModel(apiKey, process.env, 'init');

@@ -259,7 +259,9 @@ Respond with ONLY a JSON object: {"score": <number>, "reasoning": "<brief explan
             });
 
             const data = await response.json() as any;
-            const text = data?.content?.[0]?.text || '';
+            // Adaptive thinking is on by default on current Claude models, so the first
+            // content block may be a thinking block — select the text block explicitly.
+            const text = data?.content?.find((b: any) => b.type === 'text')?.text || '';
             return this.parseResponse(text, config);
         } catch (e) {
             return { grader_type: 'llm_rubric', score: 0, weight: config.weight, details: `Anthropic API error: ${e}` };
