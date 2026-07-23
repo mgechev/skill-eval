@@ -208,6 +208,7 @@ describe('LLMGrader', () => {
 
       const originalFetch = globalThis.fetch;
       globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: true,
         json: () => Promise.resolve({
           candidates: [{
             content: {
@@ -233,6 +234,7 @@ describe('LLMGrader', () => {
 
       const originalFetch = globalThis.fetch;
       globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: true,
         json: () => Promise.resolve({
           candidates: [{
             content: {
@@ -257,6 +259,7 @@ describe('LLMGrader', () => {
 
       const originalFetch = globalThis.fetch;
       globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: true,
         json: () => Promise.resolve({
           candidates: [{ content: { parts: [{ text: '' }] } }],
         }),
@@ -295,6 +298,7 @@ describe('LLMGrader', () => {
 
       const originalFetch = globalThis.fetch;
       globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: true,
         json: () => Promise.resolve({
           candidates: [{
             content: {
@@ -320,6 +324,7 @@ describe('LLMGrader', () => {
 
       const originalFetch = globalThis.fetch;
       globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: true,
         json: () => Promise.resolve({
           candidates: [{
             content: {
@@ -347,8 +352,9 @@ describe('LLMGrader', () => {
 
       const originalFetch = globalThis.fetch;
       globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: true,
         json: () => Promise.resolve({
-          content: [{ text: '{"score": 0.85, "reasoning": "good"}' }],
+          content: [{ type: 'text', text: '{"score": 0.85, "reasoning": "good"}' }],
         }),
       } as any);
 
@@ -376,8 +382,9 @@ describe('LLMGrader', () => {
 
       const originalFetch = globalThis.fetch;
       globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: true,
         json: () => Promise.resolve({
-          content: [{ text: '{"score": 0.9, "reasoning": "custom endpoint"}' }],
+          content: [{ type: 'text', text: '{"score": 0.9, "reasoning": "custom endpoint"}' }],
         }),
       } as any);
 
@@ -395,6 +402,71 @@ describe('LLMGrader', () => {
 
       globalThis.fetch = originalFetch;
     });
+
+    it('reads the text block past a leading thinking block', async () => {
+      mockPathExists.mockResolvedValue(true as any);
+      mockReadFile.mockResolvedValue('rubric content' as any);
+
+      // Adaptive thinking is on by default on current Claude models, so the API
+      // prepends a thinking block and content[0] is not the text block.
+      const originalFetch = globalThis.fetch;
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({
+          content: [
+            { type: 'thinking', thinking: '' },
+            { type: 'text', text: '{"score": 0.75, "reasoning": "solid"}' },
+          ],
+        }),
+      } as any);
+
+      const provider = makeProvider('');
+      const env = { ANTHROPIC_API_KEY: 'test-key' };
+      const config: GraderConfig = { ...baseConfig, provider: 'anthropic' };
+      const result = await grader.grade('/workspace', provider, config, '/task', [], env);
+
+      expect(result.score).toBe(0.75);
+
+      globalThis.fetch = originalFetch;
+    });
+  });
+
+  describe('HTTP error surfacing', () => {
+    // A non-2xx used to fall through to an empty completion and get reported as a
+    // score-0 "Failed to parse" — making a dead API key look like a failing eval.
+    const cases: Array<{ provider: 'gemini' | 'anthropic' | 'openai'; label: string; key: string }> = [
+      { provider: 'gemini', label: 'Gemini', key: 'GEMINI_API_KEY' },
+      { provider: 'anthropic', label: 'Anthropic', key: 'ANTHROPIC_API_KEY' },
+      { provider: 'openai', label: 'OpenAI', key: 'OPENAI_API_KEY' },
+    ];
+
+    for (const { provider, label, key } of cases) {
+      it(`reports the HTTP status when the ${label} API returns a non-2xx`, async () => {
+        mockPathExists.mockResolvedValue(true as any);
+        mockReadFile.mockResolvedValue('rubric content' as any);
+
+        const originalFetch = globalThis.fetch;
+        globalThis.fetch = vi.fn().mockResolvedValue({
+          ok: false,
+          status: 401,
+          text: () => Promise.resolve('{"error":{"message":"invalid x-api-key"}}'),
+          json: () => Promise.resolve({}),
+        } as any);
+
+        const env = { [key]: 'bad-key' };
+        const config: GraderConfig = { ...baseConfig, provider };
+        const result = await grader.grade('/workspace', makeProvider(''), config, '/task', [], env);
+
+        expect(result.score).toBe(0);
+        expect(result.details).toContain('HTTP 401');
+        expect(result.details).toContain(label);
+        expect(result.details).toContain('invalid x-api-key');
+        // The old, misleading failure mode must be gone.
+        expect(result.details).not.toContain('Failed to parse');
+
+        globalThis.fetch = originalFetch;
+      });
+    }
   });
 
   describe('openai provider', () => {
@@ -404,6 +476,7 @@ describe('LLMGrader', () => {
 
       const originalFetch = globalThis.fetch;
       globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: true,
         json: () => Promise.resolve({
           choices: [{ message: { content: '{"score": 0.75, "reasoning": "solid"}' } }],
         }),
@@ -433,6 +506,7 @@ describe('LLMGrader', () => {
 
       const originalFetch = globalThis.fetch;
       globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: true,
         json: () => Promise.resolve({
           choices: [{ message: { content: '{"score": 0.8, "reasoning": "nice"}' } }],
         }),
@@ -463,6 +537,7 @@ describe('LLMGrader', () => {
     globalThis.fetch = vi.fn().mockImplementation(async (_url: string, opts: any) => {
       capturedBody = JSON.parse(opts.body);
       return {
+        ok: true,
         json: () => Promise.resolve({
           candidates: [{ content: { parts: [{ text: '{"score": 1.0, "reasoning": "ok"}' }] } }],
         }),
@@ -495,6 +570,7 @@ describe('LLMGrader', () => {
 
       const originalFetch = globalThis.fetch;
       globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: true,
         json: () => Promise.resolve({
           choices: [{ message: { content: '', reasoning_content: '{"score": 0.6, "reasoning": "via reasoning"}' } }],
         }),
@@ -517,6 +593,7 @@ describe('LLMGrader', () => {
 
       const originalFetch = globalThis.fetch;
       globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: true,
         json: () => Promise.resolve({
           choices: [{ message: {} }],
           model: 'deepseek-reasoning',

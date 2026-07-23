@@ -1,4 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { generateWithLLM } from '../src/commands/init';
 
 // We test extractInstructionHint and getInlineTemplate
 // These functions are not exported so we need to test them via runInit or replicate them
@@ -135,5 +136,124 @@ tasks:
     const template = getInlineTemplate();
     expect(template).toContain('"score"');
     expect(template).toContain('"details"');
+  });
+});
+
+describe('generateWithLLM — Anthropic', () => {
+  const skills = [{ name: 'my-skill', skillMd: '# My Skill\n\nDoes a thing.' }];
+  const savedEnv = { ...process.env };
+  let originalFetch: typeof globalThis.fetch;
+
+  beforeEach(() => {
+    originalFetch = globalThis.fetch;
+    // Pin the model so resolveAnthropicModel short-circuits instead of hitting /v1/models.
+    process.env.ANTHROPIC_MODEL = 'claude-sonnet-5';
+  });
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+    process.env = { ...savedEnv };
+  });
+
+  // Stub fetch, capturing the request URL and parsed body for assertions.
+  function stubFetch() {
+    const captured: { url?: string; body?: any } = {};
+    globalThis.fetch = vi.fn().mockImplementation(async (url: string, opts: any) => {
+      captured.url = url;
+      captured.body = JSON.parse(opts.body);
+      return {
+        ok: true,
+        json: () => Promise.resolve({ content: [{ type: 'text', text: 'version: "1"\n' }] }),
+      };
+    }) as any;
+    return captured;
+  }
+
+  it('reads the text block past a leading thinking block', async () => {
+    // Adaptive thinking is on by default on current Claude models, so the API
+    // prepends a thinking block and content[0] is not the text block.
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({
+        content: [
+          { type: 'thinking', thinking: '' },
+          { type: 'text', text: '```yaml\nversion: "1"\ntasks: []\n```' },
+        ],
+      }),
+    }) as any;
+
+    const result = await generateWithLLM(skills, 'test-key', 'anthropic');
+
+    expect(result).toContain('version: "1"');
+    expect(result).not.toContain('```');
+  });
+
+  it('does not send a temperature parameter (rejected by current Claude models)', async () => {
+    const captured = stubFetch();
+    await generateWithLLM(skills, 'test-key', 'anthropic');
+    expect(captured.body).not.toHaveProperty('temperature');
+  });
+
+  it('posts to the default messages endpoint', async () => {
+    delete process.env.ANTHROPIC_BASE_URL;
+    const captured = stubFetch();
+    await generateWithLLM(skills, 'test-key', 'anthropic');
+    expect(captured.url).toBe('https://api.anthropic.com/v1/messages');
+  });
+
+  it('honors ANTHROPIC_BASE_URL for parity with the grader', async () => {
+    process.env.ANTHROPIC_BASE_URL = 'http://localhost:8080/v1/';
+    const captured = stubFetch();
+    await generateWithLLM(skills, 'test-key', 'anthropic');
+    expect(captured.url).toBe('http://localhost:8080/v1/messages');
+  });
+
+  it('ignores an empty ANTHROPIC_BASE_URL rather than treating it as an override', async () => {
+    process.env.ANTHROPIC_BASE_URL = '   ';
+    const captured = stubFetch();
+    await generateWithLLM(skills, 'test-key', 'anthropic');
+    expect(captured.url).toBe('https://api.anthropic.com/v1/messages');
+  });
+});
+
+describe('generateWithLLM — OpenAI', () => {
+  const skills = [{ name: 'my-skill', skillMd: '# My Skill\n\nDoes a thing.' }];
+  const savedEnv = { ...process.env };
+  let originalFetch: typeof globalThis.fetch;
+
+  beforeEach(() => {
+    originalFetch = globalThis.fetch;
+    process.env.OPENAI_MODEL = 'gpt-5-mini';
+  });
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+    process.env = { ...savedEnv };
+  });
+
+  function stubFetch() {
+    const captured: { url?: string } = {};
+    globalThis.fetch = vi.fn().mockImplementation(async (url: string) => {
+      captured.url = url;
+      return {
+        ok: true,
+        json: () => Promise.resolve({ choices: [{ message: { content: 'version: "1"\n' } }] }),
+      };
+    }) as any;
+    return captured;
+  }
+
+  it('posts to the default chat/completions endpoint', async () => {
+    delete process.env.OPENAI_BASE_URL;
+    const captured = stubFetch();
+    await generateWithLLM(skills, 'test-key', 'openai');
+    expect(captured.url).toBe('https://api.openai.com/v1/chat/completions');
+  });
+
+  it('honors OPENAI_BASE_URL so init works against Ollama/vLLM', async () => {
+    process.env.OPENAI_BASE_URL = 'http://localhost:11434/v1';
+    const captured = stubFetch();
+    await generateWithLLM(skills, 'test-key', 'openai');
+    expect(captured.url).toBe('http://localhost:11434/v1/chat/completions');
   });
 });

@@ -211,7 +211,7 @@ The `provider` field selects which LLM API to call:
 | `anthropic`| `ANTHROPIC_API_KEY` | `ANTHROPIC_BASE_URL`        | Dynamically resolved latest Haiku model (via API) |
 | `openai`   | `OPENAI_API_KEY`    | `OPENAI_BASE_URL`           | Dynamically resolved latest Mini/Flash model (via API) |
 
-`ANTHROPIC_BASE_URL` and `OPENAI_BASE_URL` enable custom/self-hosted endpoints (Ollama, vLLM, etc.).
+`ANTHROPIC_BASE_URL` and `OPENAI_BASE_URL` enable custom/self-hosted endpoints (Ollama, vLLM, etc.). They apply to both LLM grading and `skillgrade init`.
 
 ### Combining Graders
 
@@ -250,8 +250,8 @@ Exits with code 1 if pass rate falls below `--threshold` (default: 0.8).
 | `GEMINI_API_KEY` | Agent execution, LLM grading (`provider: gemini`), `skillgrade init` |
 | `ANTHROPIC_API_KEY` | Agent execution, LLM grading (`provider: anthropic`), `skillgrade init` |
 | `OPENAI_API_KEY` | Agent execution (Codex), LLM grading (`provider: openai`), `skillgrade init` |
-| `ANTHROPIC_BASE_URL` | LLM grading (`provider: anthropic`) — custom Anthropic-compatible endpoint |
-| `OPENAI_BASE_URL` | LLM grading (`provider: openai`) — custom OpenAI-compatible endpoint (Ollama, vLLM, etc.) |
+| `ANTHROPIC_BASE_URL` | LLM grading (`provider: anthropic`), `skillgrade init` — custom Anthropic-compatible endpoint |
+| `OPENAI_BASE_URL` | LLM grading (`provider: openai`), `skillgrade init` — custom OpenAI-compatible endpoint (Ollama, vLLM, etc.) |
 | `GEMINI_MODEL` | Override the default model used for Gemini LLM grading (defaults to dynamic API lookup; throws if resolution fails) |
 | `INIT_GEMINI_MODEL` | Override the model used for Gemini in `skillgrade init` (defaults to `GEMINI_MODEL` or dynamic API lookup; throws if resolution fails) |
 | `ANTHROPIC_MODEL` | Override the default model used for Anthropic LLM grading (defaults to dynamic API lookup; throws if resolution fails) |
