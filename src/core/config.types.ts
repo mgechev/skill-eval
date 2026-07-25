@@ -61,6 +61,7 @@ export interface EvalTaskConfig {
     grader_provider?: 'gemini' | 'anthropic' | 'openai';
     docker?: DockerConfig;
     environment?: Partial<EnvironmentConfig>;
+    interactive?: InteractiveConfig;
 }
 
 /** Top-level defaults */
@@ -103,6 +104,7 @@ export interface ResolvedTask {
     acp?: AcpConfig;        // ACP agent configuration
     docker: DockerConfig;
     environment: EnvironmentConfig;
+    interactive?: InteractiveConfig;
 }
 
 export interface ResolvedGrader {
@@ -113,4 +115,66 @@ export interface ResolvedGrader {
     model?: string;                               // resolved model override
     provider?: 'gemini' | 'anthropic' | 'openai'; // which LLM API to call (default: 'gemini')
     weight: number;
+}
+
+// ==================== Interactive (multi-turn) config ====================
+
+/** Interaction trigger */
+export interface InteractionTrigger {
+    type: 'on_turn' | 'on_output_contains' | 'on_needs_input' | 'on_command';
+    turns?: number[];                 // on_turn: trigger on these turns [1, 3, 5]
+    pattern?: string;                 // on_output_contains: match pattern
+    command_pattern?: string;         // on_command: command match pattern
+    input_type?: string;              // on_needs_input: input request type
+}
+
+/** Input injector */
+export interface InputInjector {
+    type: 'static' | 'file' | 'dynamic';
+    content?: string;                 // static: inline content
+    file?: string;                    // file: file path (supports {turn} placeholder)
+    script?: string;                  // dynamic: script for generating content
+}
+
+/** Input request auto-response config */
+export interface InputRequestPattern {
+    pattern: string;                  // marker pattern in output (regex)
+    type: string;                     // request type
+    response: string;                 // auto-response content
+}
+
+/** Context passing config */
+export interface ContextConfig {
+    max_history_turns?: number;       // max history turns to avoid token overflow (default: 10)
+    include_system_prompt?: boolean;  // whether to include system prompt (default: false)
+    system_prompt?: string;           // custom system prompt
+}
+
+/** Interactive evaluation config */
+export interface InteractiveConfig {
+    enabled: boolean;                 // enable multi-turn mode
+    max_turns: number;                // max turns (default: 10)
+    timeout_per_turn?: number;        // per-turn timeout (seconds)
+
+    // Context passing config
+    context?: ContextConfig;
+
+    // Auto-responses when agent requests input
+    input_requests?: {
+        patterns: InputRequestPattern[];
+    };
+
+    // Predetermined injections
+    injections?: Array<{
+        trigger: InteractionTrigger;
+        injector: InputInjector;
+    }>;
+
+    // Stop conditions
+    stop_conditions?: Array<{
+        type: 'output_matches' | 'command_executed' | 'turns_reached';
+        pattern?: string;
+        command?: string;
+        turns?: number;
+    }>;
 }

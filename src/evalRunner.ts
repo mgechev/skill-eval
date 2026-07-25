@@ -4,22 +4,12 @@ import {
     BaseAgent, EnvironmentProvider,
     LogEntry, TrialResult, EvalReport, GraderResult, AgentResult
 } from './types';
-import { ResolvedGrader } from './core/config.types';
+import { ResolvedGrader, InteractiveConfig } from './core/config.types';
 import { getGrader } from './graders';
 import { fmt, Spinner } from './utils/cli';
-
-function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string): Promise<T> {
-    return new Promise<T>((resolve, reject) => {
-        const timer = setTimeout(() => {
-            reject(new Error(`${label} timed out after ${timeoutMs / 1000}s`));
-        }, timeoutMs);
-
-        promise.then(
-            (val) => { clearTimeout(timer); resolve(val); },
-            (err) => { clearTimeout(timer); reject(err); }
-        );
-    });
-}
+import { withTimeout } from './utils/timeout';
+import { InteractiveSession, InputInjectorManager } from './interactive';
+import { ClaudeStreamAgent } from './agents/claude-stream';
 
 /**
  * Calculate pass@k: probability of at least 1 success in k trials
@@ -71,6 +61,8 @@ export interface EvalRunOptions {
         cpus: number;
         memory_mb: number;
     };
+    interactive?: InteractiveConfig;
+    taskPath?: string;
 }
 
 export class EvalRunner {
@@ -179,6 +171,10 @@ export class EvalRunner {
         total: number,
         env?: Record<string, string>
     ): Promise<TrialResult> {
+        if (opts.interactive?.enabled) {
+            return this.runInteractiveTrial(agent, taskPath, skillsPaths, opts, index, total, env);
+        }
+
         const sessionLog: LogEntry[] = [];
         let commandCount = 0;
         const startTime = Date.now();
@@ -330,6 +326,290 @@ export class EvalRunner {
                 session_log: sessionLog
             };
         } finally {
+            await this.provider.cleanup(workspace);
+        }
+    }
+
+    private async runInteractiveTrial(
+        agent: BaseAgent,
+        taskPath: string,
+        skillsPaths: string[],
+        opts: EvalRunOptions,
+        index: number,
+        total: number,
+        env?: Record<string, string>
+    ): Promise<TrialResult> {
+        const sessionLog: LogEntry[] = [];
+        const startTime = Date.now();
+
+        const spinner = new Spinner(`${index + 1}/${total}`, 'setting up environment');
+        const workspace = await this.provider.setup(taskPath, skillsPaths, opts, env);
+
+        try {
+            if (agent instanceof ClaudeStreamAgent) {
+                agent.start(workspace);
+            }
+
+            const instruction = opts.instruction;
+            const interactiveConfig = opts.interactive!;
+
+            sessionLog.push({
+                type: 'agent_start',
+                timestamp: this.timestamp(),
+                instruction,
+                task_path: path.resolve(taskPath),
+                workspace_path: workspace,
+            });
+
+            spinner.update('running interactive session');
+
+            const logEntry = (entry: LogEntry) => {
+                sessionLog.push(entry);
+            };
+
+            const injectorManager = new InputInjectorManager(
+                interactiveConfig,
+                opts.taskPath || taskPath
+            );
+
+            const session = new InteractiveSession(
+                agent,
+                injectorManager,
+                interactiveConfig,
+                workspace,
+                async (cmd: string) => {
+                    return this.provider.runCommand(workspace, cmd, env);
+                },
+                logEntry
+            );
+
+            const timeoutPerTurn = interactiveConfig.timeout_per_turn || opts.timeoutSec;
+            const maxTurns = interactiveConfig.max_turns || 10;
+            const calculatedTimeout = maxTurns * timeoutPerTurn;
+            const sessionTimeoutSec = Math.max(opts.timeoutSec, calculatedTimeout);
+            const sessionTimeoutMs = sessionTimeoutSec * 1000;
+
+            let sessionResult;
+            let sessionTimeoutError: string | null = null;
+            try {
+                sessionResult = await withTimeout(
+                    session.run(instruction),
+                    sessionTimeoutMs,
+                    `Interactive session (limit: ${sessionTimeoutSec}s)`
+                );
+            } catch (timeoutErr: any) {
+                sessionTimeoutError = timeoutErr.message || String(timeoutErr);
+                spinner.update('session timed out, grading partial results...');
+            }
+
+            const turns = session.getTurns();
+            const conversation = session.getConversation();
+            const commandCount = turns.reduce((sum, t) => sum + t.commands_executed, 0);
+            const totalTurns = turns.length;
+            const finalOutput = turns.length > 0 ? turns[turns.length - 1].output : (sessionTimeoutError || '');
+
+            sessionLog.push({
+                type: 'agent_result',
+                timestamp: this.timestamp(),
+                duration_ms: Date.now() - startTime,
+                output: sessionTimeoutError ? `[TIMEOUT] ${sessionTimeoutError}\n\n${finalOutput}` : finalOutput,
+            });
+
+            if (sessionTimeoutError) {
+                sessionLog.push({
+                    type: 'error',
+                    timestamp: this.timestamp(),
+                    error_type: 'TimeoutError',
+                    error_message: sessionTimeoutError,
+                    output: sessionTimeoutError,
+                });
+            }
+
+            // Run graders (even on timeout)
+            const graderResults: GraderResult[] = [];
+            // Attach turns/conversation for LLM grader multi-turn support
+            (sessionLog as any).turns = turns;
+            (sessionLog as any).conversation = conversation;
+
+            for (let gIdx = 0; gIdx < opts.graders.length; gIdx++) {
+                const graderDef = opts.graders[gIdx];
+                const grader = getGrader(graderDef.type);
+                spinner.update(`grading (${graderDef.type}${opts.graders.length > 1 ? ` ${gIdx + 1}/${opts.graders.length}` : ''})`);
+
+                const detIndex = opts.graders.slice(0, gIdx).filter(g => g.type === 'deterministic').length;
+                const llmIndex = opts.graders.slice(0, gIdx).filter(g => g.type === 'llm_rubric').length;
+
+                const graderConfig = {
+                    type: graderDef.type,
+                    command: graderDef.type === 'deterministic'
+                        ? `bash tests/${detIndex === 0 ? 'test.sh' : `test_${detIndex}.sh`}`
+                        : undefined,
+                    rubric: graderDef.type === 'llm_rubric'
+                        ? `prompts/${llmIndex === 0 ? 'quality.md' : `quality_${llmIndex}.md`}`
+                        : undefined,
+                    model: graderDef.model || opts.graderModel,
+                    provider: graderDef.provider || opts.graderProvider,
+                    weight: graderDef.weight,
+                };
+
+                const graderTimeoutMs = (opts.graderTimeoutSec ?? 120) * 1000;
+                const result = await withTimeout(
+                    grader.grade(workspace, this.provider, graderConfig, taskPath, sessionLog, env),
+                    graderTimeoutMs,
+                    `Grader ${graderDef.type} (limit: ${opts.graderTimeoutSec ?? 120}s)`
+                );
+                graderResults.push(result);
+
+                sessionLog.push({
+                    type: 'grader',
+                    timestamp: this.timestamp(),
+                    duration_ms: Date.now() - startTime,
+                    grader_result: result,
+                });
+            }
+
+            const totalWeight = graderResults.reduce((sum, r) => sum + r.weight, 0);
+            const reward = totalWeight > 0
+                ? graderResults.reduce((sum, r) => sum + r.score * r.weight, 0) / totalWeight
+                : 0;
+
+            sessionLog.push({
+                type: 'reward',
+                timestamp: this.timestamp(),
+                value: reward,
+            });
+
+            const duration_ms = Date.now() - startTime;
+
+            const input_tokens = estimateTokens(instruction);
+            const output_tokens = turns.reduce(
+                (sum, t) => sum + estimateTokens(t.input) + estimateTokens(t.output), 0
+            );
+
+            const allSkillsTriggered = session.getSkillsTriggered();
+            const allToolsUsed = session.getToolsUsed();
+
+            const status = reward >= 0.5 ? fmt.pass('PASS') : fmt.fail('FAIL');
+            const timeoutHint = sessionTimeoutError ? fmt.dim(' (timeout)') : '';
+            const skillHint = allSkillsTriggered.length > 0
+                ? `  ${fmt.dim(allSkillsTriggered.map(s => s.name).join(', '))}`
+                : '';
+            spinner.stop(`${status}${timeoutHint}  ${fmt.bold(reward.toFixed(2))}  ${fmt.dim((duration_ms / 1000).toFixed(1) + 's')}  ${fmt.dim(totalTurns + ' turns')}  ${fmt.dim(commandCount + ' cmds')}${skillHint}`);
+
+            return {
+                trial_id: index + 1,
+                reward,
+                grader_results: graderResults,
+                duration_ms,
+                n_commands: commandCount,
+                input_tokens,
+                output_tokens,
+                session_log: sessionLog,
+                skills_triggered: allSkillsTriggered,
+                tools_used: allToolsUsed,
+                turns,
+                conversation,
+            };
+        } catch (err: any) {
+            const duration_ms = Date.now() - startTime;
+            const errorMsg = err?.message || String(err);
+            const errorStack = err?.stack || '';
+            spinner.stop(`${fmt.fail('FAIL')}  ${errorMsg.substring(0, 50)}  ${fmt.dim((duration_ms / 1000).toFixed(1) + 's')}`);
+
+            let diagnostics = '';
+            if (this.provider.diagnose) {
+                try {
+                    diagnostics = await this.provider.diagnose(workspace);
+                    console.log(diagnostics);
+                } catch (e) {
+                    diagnostics = `(diagnostics failed: ${e})`;
+                }
+            }
+
+            sessionLog.push({
+                type: 'error',
+                timestamp: this.timestamp(),
+                error_type: err?.constructor?.name || 'Error',
+                error_message: errorMsg,
+                output: diagnostics ? `${errorMsg}\n\nDiagnostics:\n${diagnostics}` : errorMsg,
+            });
+
+            // Attempt grading even on error (best-effort)
+            try {
+                const graderResults: GraderResult[] = [];
+                for (let gIdx = 0; gIdx < opts.graders.length; gIdx++) {
+                    const graderDef = opts.graders[gIdx];
+                    const grader = getGrader(graderDef.type);
+
+                    const detIndex = opts.graders.slice(0, gIdx).filter(g => g.type === 'deterministic').length;
+                    const llmIndex = opts.graders.slice(0, gIdx).filter(g => g.type === 'llm_rubric').length;
+
+                    const graderConfig = {
+                        type: graderDef.type,
+                        command: graderDef.type === 'deterministic'
+                            ? `bash tests/${detIndex === 0 ? 'test.sh' : `test_${detIndex}.sh`}`
+                            : undefined,
+                        rubric: graderDef.type === 'llm_rubric'
+                            ? `prompts/${llmIndex === 0 ? 'quality.md' : `quality_${llmIndex}.md`}`
+                            : undefined,
+                        model: graderDef.model || opts.graderModel,
+                        provider: graderDef.provider || opts.graderProvider,
+                        weight: graderDef.weight,
+                    };
+
+                    const graderTimeoutMs = (opts.graderTimeoutSec ?? 120) * 1000;
+                    const result = await withTimeout(
+                        grader.grade(workspace, this.provider, graderConfig, taskPath, sessionLog, env),
+                        graderTimeoutMs,
+                        `Grader ${graderDef.type} (limit: ${opts.graderTimeoutSec ?? 120}s)`
+                    );
+                    graderResults.push(result);
+                }
+
+                const totalWeight = graderResults.reduce((sum, r) => sum + r.weight, 0);
+                const reward = totalWeight > 0
+                    ? graderResults.reduce((sum, r) => sum + r.score * r.weight, 0) / totalWeight
+                    : 0;
+
+                sessionLog.push({
+                    type: 'reward',
+                    timestamp: this.timestamp(),
+                    value: reward,
+                });
+
+                return {
+                    trial_id: index + 1,
+                    reward,
+                    grader_results: graderResults,
+                    duration_ms,
+                    n_commands: 0,
+                    input_tokens: estimateTokens(opts.instruction),
+                    output_tokens: 0,
+                    session_log: sessionLog,
+                };
+            } catch {
+                sessionLog.push({
+                    type: 'reward',
+                    timestamp: this.timestamp(),
+                    value: 0,
+                    output: diagnostics ? `${errorMsg}\n\nDiagnostics:\n${diagnostics}` : errorMsg,
+                });
+
+                return {
+                    trial_id: index + 1,
+                    reward: 0,
+                    grader_results: [],
+                    duration_ms,
+                    n_commands: 0,
+                    input_tokens: 0,
+                    output_tokens: 0,
+                    session_log: sessionLog,
+                };
+            }
+        } finally {
+            if (agent instanceof ClaudeStreamAgent && agent.isRunning()) {
+                agent.close();
+            }
             await this.provider.cleanup(workspace);
         }
     }

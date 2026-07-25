@@ -12,6 +12,7 @@ import {
     WorkspaceMapping,
     EnvironmentConfig,
     AcpConfig,
+    InteractiveConfig,
 } from './config.types';
 
 // We use a simple YAML parser — js-yaml is the standard
@@ -161,6 +162,7 @@ function validateConfig(raw: any): EvalConfig {
             grader_provider: t.grader_provider,
             docker: t.docker,
             environment: t.environment,
+            interactive: t.interactive ? validateInteractiveConfig(t.interactive) : undefined,
         };
     });
 
@@ -237,6 +239,80 @@ export async function resolveTask(
         acp,
         docker,
         environment,
+        interactive: task.interactive,
+    };
+}
+
+/**
+ * Validate and normalize interactive config.
+ */
+function validateInteractiveConfig(raw: any): InteractiveConfig {
+    if (!raw || typeof raw !== 'object') {
+        return { enabled: false, max_turns: 10 };
+    }
+
+    const enabled = raw.enabled === true;
+    const max_turns = typeof raw.max_turns === 'number' ? raw.max_turns : 10;
+    const timeout_per_turn = typeof raw.timeout_per_turn === 'number' ? raw.timeout_per_turn : undefined;
+
+    let input_requests: InteractiveConfig['input_requests'] | undefined;
+    if (raw.input_requests?.patterns && Array.isArray(raw.input_requests.patterns)) {
+        input_requests = {
+            patterns: raw.input_requests.patterns.map((p: any) => ({
+                pattern: String(p.pattern || ''),
+                type: String(p.type || 'generic'),
+                response: String(p.response || ''),
+            })),
+        };
+    }
+
+    let injections: InteractiveConfig['injections'] | undefined;
+    if (raw.injections && Array.isArray(raw.injections)) {
+        injections = raw.injections.map((inj: any) => ({
+            trigger: {
+                type: inj.trigger?.type || 'on_turn',
+                turns: inj.trigger?.turns,
+                pattern: inj.trigger?.pattern,
+                command_pattern: inj.trigger?.command_pattern,
+                input_type: inj.trigger?.input_type,
+            },
+            injector: {
+                type: inj.injector?.type || 'static',
+                content: inj.injector?.content,
+                file: inj.injector?.file,
+                script: inj.injector?.script,
+            },
+        }));
+    }
+
+    let stop_conditions: InteractiveConfig['stop_conditions'] | undefined;
+    if (raw.stop_conditions && Array.isArray(raw.stop_conditions)) {
+        stop_conditions = raw.stop_conditions.map((c: any) => ({
+            type: c.type || 'turns_reached',
+            pattern: c.pattern,
+            command: c.command,
+            turns: c.turns,
+        }));
+    }
+
+    // Validate context config
+    let context: InteractiveConfig['context'] | undefined;
+    if (raw.context && typeof raw.context === 'object') {
+        context = {
+            max_history_turns: typeof raw.context.max_history_turns === 'number' ? raw.context.max_history_turns : undefined,
+            include_system_prompt: raw.context.include_system_prompt === true ? true : undefined,
+            system_prompt: typeof raw.context.system_prompt === 'string' ? raw.context.system_prompt : undefined,
+        };
+    }
+
+    return {
+        enabled,
+        max_turns,
+        timeout_per_turn,
+        context,
+        input_requests,
+        injections,
+        stop_conditions,
     };
 }
 
