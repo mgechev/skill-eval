@@ -138,6 +138,37 @@ instruction: instructions/fix-linting.md
 rubric: rubrics/workflow-quality.md
 ```
 
+### Splitting eval.yaml across files
+
+Any section can live in another file. `$import` takes a file, a directory (every
+`.yaml`/`.yml` inside it, sorted), a glob, or a list of those:
+
+```yaml
+version: "1"
+
+defaults:
+  $import: shared/defaults.yaml   # merged in place — keys below win
+  trials: 3
+
+tasks:
+  - $import: evals/easy/*.yaml    # one task per file, or a file holding a list
+  - $import: evals/hard           # a whole directory
+    trials: 10                    # applied to every task it imports
+  - name: still-inline            # inline tasks keep working
+    instruction: ...
+    graders: [...]
+```
+
+Each imported file is a normal YAML document — a single task, a list of tasks, or
+an object for a section like `defaults`. Imported files may import further files;
+paths are relative to the file that contains the `$import`, and cycles are an error.
+
+A task keeps working when you move it into its own file: **its relative paths
+resolve against its own directory first, then the eval root.** So
+`evals/easy/one.yaml` can say `instruction: instruction.md` for the file next to it
+while still pointing `run: node graders/check.mjs` at the shared graders directory
+at the root.
+
 ## Graders
 
 ### Deterministic

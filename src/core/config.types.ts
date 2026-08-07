@@ -61,6 +61,9 @@ export interface EvalTaskConfig {
     grader_provider?: 'gemini' | 'anthropic' | 'openai';
     docker?: DockerConfig;
     environment?: Partial<EnvironmentConfig>;
+
+    /** Absolute path of the file this task was parsed from — set when the task came from a `$import`. */
+    sourceFile?: string;
 }
 
 /** Top-level defaults */
@@ -103,6 +106,8 @@ export interface ResolvedTask {
     acp?: AcpConfig;        // ACP agent configuration
     docker: DockerConfig;
     environment: EnvironmentConfig;
+    /** Directories that this task's relative paths resolve against, in order: its own file's dir, then the eval root. */
+    baseDirs?: string[];
 }
 
 export interface ResolvedGrader {

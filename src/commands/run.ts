@@ -257,6 +257,16 @@ export async function runEvals(dir: string, opts: RunOptions) {
 export async function prepareTempTaskDir(resolved: ResolvedTask, baseDir: string, tmpDir: string) {
     await fs.ensureDir(tmpDir);
 
+    // An imported task looks for its files next to its own file first
+    const baseDirs = resolved.baseDirs?.length ? resolved.baseDirs : [baseDir];
+    const findSrc = async (ref: string) => {
+        for (const dir of baseDirs) {
+            const candidate = path.resolve(dir, ref);
+            if (await fs.pathExists(candidate)) return candidate;
+        }
+        return null;
+    };
+
     // Write each deterministic grader script
     await fs.ensureDir(path.join(tmpDir, 'tests'));
     const detGraders = resolved.graders.filter(g => g.type === 'deterministic');
@@ -274,9 +284,9 @@ export async function prepareTempTaskDir(resolved: ResolvedTask, baseDir: string
             const pathMatches = g.run.match(/[\w./-]+\.\w{1,4}/g) || [];
             for (const ref of pathMatches) {
                 const refDir = ref.split('/')[0];
-                const srcDir = path.resolve(baseDir, refDir);
+                const srcDir = await findSrc(refDir);
                 const destDir = path.join(tmpDir, refDir);
-                if (refDir !== ref && await fs.pathExists(srcDir) && !await fs.pathExists(destDir)) {
+                if (refDir !== ref && srcDir && !await fs.pathExists(destDir)) {
                     await fs.copy(srcDir, destDir);
                 }
             }
@@ -326,8 +336,8 @@ export async function prepareTempTaskDir(resolved: ResolvedTask, baseDir: string
 
     // Copy workspace files
     for (const w of resolved.workspace) {
-        const srcPath = path.resolve(baseDir, w.src);
-        if (await fs.pathExists(srcPath)) {
+        const srcPath = await findSrc(w.src);
+        if (srcPath) {
             if (resolved.provider === 'local') {
                 // For local provider: copy directly to destination path in tmpDir
                 const destPath = path.join(tmpDir, w.dest);
