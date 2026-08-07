@@ -7,6 +7,7 @@ import * as fs from 'fs-extra';
 import * as path from 'path';
 import * as os from 'os';
 import { loadEvalConfig, resolveTask } from '../core/config';
+import { TaskFilter, describeSelection, metadataKeys, selectTasks } from '../core/filter';
 import { detectSkills } from '../core/skills';
 import { DockerProvider } from '../providers/docker';
 import { LocalProvider } from '../providers/local';
@@ -19,6 +20,9 @@ import { fmt, header, kv, resultsSummary, validationResult } from '../utils/cli'
 
 interface RunOptions {
     eval?: string;       // run specific eval(s) by name (comma-separated)
+    filters?: TaskFilter[];   // --filter / --not-filter over task metadata
+    filterPattern?: string;   // --filter-pattern regex over task names
+    list?: boolean;           // print the selection and run nothing
     trials?: number;     // override trial count
     parallel?: number;
     validate?: boolean;
@@ -81,16 +85,41 @@ export async function runEvals(dir: string, opts: RunOptions) {
         }
     }
 
-    // Filter evals
-    let tasksToRun = config.tasks;
-    if (opts.eval) {
-        const evalNames = opts.eval.split(',').map(s => s.trim());
-        tasksToRun = config.tasks.filter(t => evalNames.includes(t.name));
-        if (tasksToRun.length === 0) {
-            console.error(`  ${fmt.red('error')}  eval "${opts.eval}" not found`);
+    // Select which of the tasks to run: by name, by name pattern, by metadata
+    let tasksToRun;
+    try {
+        tasksToRun = selectTasks(config.tasks, {
+            names: opts.eval?.split(',').map(s => s.trim()).filter(Boolean),
+            filters: opts.filters,
+            pattern: opts.filterPattern,
+        });
+    } catch (err) {
+        console.error(`  ${fmt.red('error')}  ${err instanceof Error ? err.message : err}`);
+        if (opts.eval) {
             console.log(`  ${fmt.dim('available:')} ${config.tasks.map(t => t.name).join(', ')}`);
-            throw new Error(`Eval "${opts.eval}" not found`);
         }
+        throw err;
+    }
+
+    const narrowed = tasksToRun.length !== config.tasks.length;
+    if (narrowed) {
+        kv('selected', `${tasksToRun.length} of ${config.tasks.length} tasks`);
+    }
+
+    if (opts.list) {
+        header(`tasks (${tasksToRun.length})`);
+        for (const line of describeSelection(tasksToRun)) {
+            console.log(`    ${line}`);
+        }
+        const keys = metadataKeys(config.tasks);
+        console.log(`\n  ${fmt.dim('metadata keys:')} ${keys.join(', ') || '(none)'}\n`);
+        return;
+    }
+
+    if (tasksToRun.length === 0) {
+        console.error(`  ${fmt.red('error')}  no tasks match the selection`);
+        console.log(`  ${fmt.dim('metadata keys:')} ${metadataKeys(config.tasks).join(', ') || '(none)'}`);
+        throw new Error('No tasks match the selection');
     }
 
     // Output directory
@@ -124,6 +153,8 @@ export async function runEvals(dir: string, opts: RunOptions) {
             timeoutSec: resolved.timeout,
             graderModel: resolved.grader_model,
             graderProvider: resolved.grader_provider,
+            expected: resolved.expected,
+            metadata: resolved.metadata,
             environment: resolved.environment,
         };
 

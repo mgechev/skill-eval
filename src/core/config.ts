@@ -115,6 +115,10 @@ function validateConfig(raw: any): EvalConfig {
             throw new Error(`Task "${t.name}" uses the "command" agent but no command is set (add a "command" to the task or defaults)`);
         }
 
+        if (t.metadata !== undefined && (typeof t.metadata !== 'object' || t.metadata === null || Array.isArray(t.metadata))) {
+            throw new Error(`Task "${t.name}" has a "metadata" that is not an object — metadata holds key/value labels used by --filter`);
+        }
+
         const workspace: WorkspaceMapping[] = (t.workspace || []).map((w: any) => {
             if (typeof w === 'string') {
                 // Support shorthand: "fixtures/app.js" → same filename in workspace
@@ -145,6 +149,8 @@ function validateConfig(raw: any): EvalConfig {
                 };
             }),
             solution: t.solution,
+            expected: t.expected,
+            metadata: t.metadata,
             agent: t.agent,
             command: t.command,
             provider: t.provider,
@@ -228,6 +234,8 @@ export async function resolveTask(
         workspace: task.workspace || [],
         graders,
         solution,
+        expected: task.expected,
+        metadata: task.metadata,
         agent,
         command,
         provider,

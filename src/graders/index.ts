@@ -34,7 +34,14 @@ export class DeterministicGrader implements Grader {
         env?: Record<string, string>
     ): Promise<GraderResult> {
         const command = config.command || 'bash tests/test.sh';
-        const result = await provider.runCommand(workspace, command, env);
+
+        // Hand the grader its task context as one JSON document. One variable
+        // rather than one per field, so `expected` keeps its structure.
+        const graderEnv = config.input
+            ? { ...env, SKILLGRADE_INPUT: JSON.stringify(config.input) }
+            : env;
+
+        const result = await provider.runCommand(workspace, command, graderEnv);
 
         // Parse JSON from stdout
         const jsonMatch = result.stdout.match(/\{[\s\S]*\}/);
@@ -148,12 +155,22 @@ export class LLMGrader implements Grader {
 
         const transcript = sections.join('\n\n');
 
+        // The reference output, when the task has one. Built into the prompt in
+        // memory — never written next to the rubric, which lands in the workspace.
+        const expectedSection = config.input?.expected !== undefined
+            ? `\n\n## Expected Output\nThe reference answer for this task. The agent never saw it.\n\n${
+                typeof config.input.expected === 'string'
+                    ? config.input.expected
+                    : JSON.stringify(config.input.expected, null, 2)
+            }`
+            : '';
+
         const prompt = `You are an evaluation judge. Score the following agent session on a scale from 0.0 to 1.0 based on the rubric below.
 
 IMPORTANT CONTEXT: The agent runs inside a CLI wrapper (e.g., Gemini CLI). The agent's tool calls (file edits, shell commands) appear as text in the "Agent Output" section. This is a real execution trace, not hallucination — the "Commands Executed" section shows the CLI invocation and its captured output. The "Prior Grader Results" section shows objective automated test results that verify the actual filesystem state after the agent ran.
 
 ## Rubric
-${rubric}
+${rubric}${expectedSection}
 
 ## Session Transcript
 ${transcript}

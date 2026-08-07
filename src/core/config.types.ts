@@ -51,6 +51,20 @@ export interface EvalTaskConfig {
     graders: EvalGraderConfig[];
     solution?: string;      // path to reference solution script
 
+    /**
+     * Reference output for this task — the row's answer key. Reaches graders
+     * only (as `SKILLGRADE_INPUT` for deterministic, as a prompt section for
+     * llm_rubric) and is never written into the agent's workspace. skillgrade
+     * delivers it; it never interprets it.
+     */
+    expected?: unknown;
+
+    /**
+     * Labels used to select and slice tasks (`--filter tier=easy`). Never
+     * reaches the agent; recorded with the results.
+     */
+    metadata?: Record<string, unknown>;
+
     // Per-task overrides
     agent?: string;
     command?: string;   // command to run when agent is 'command'
@@ -96,6 +110,8 @@ export interface ResolvedTask {
     workspace: WorkspaceMapping[];
     graders: ResolvedGrader[];
     solution?: string;      // resolved file path
+    expected?: unknown;                     // reference output — graders only, never the workspace
+    metadata?: Record<string, unknown>;     // filterable labels — never sent to the agent
     agent: string;
     command?: string;       // command to run when agent is 'command'
     provider: string;

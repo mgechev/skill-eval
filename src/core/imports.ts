@@ -67,7 +67,7 @@ async function expand(node: any, file: string, stack: string[]): Promise<any> {
         const out: any[] = [];
         for (const item of node) {
             if (isImportNode(item)) {
-                out.push(...await expandImport(item, file, stack));
+                out.push(...(await expandImport(item, file, stack)).items);
             } else {
                 out.push(await expand(item, file, stack));
             }
@@ -78,12 +78,11 @@ async function expand(node: any, file: string, stack: string[]): Promise<any> {
     if (!isPlainObject(node)) return node;
 
     if (isImportNode(node)) {
-        const imported = await expandImport(node, file, stack);
-        // A single imported object stays an object; anything else (a file
-        // holding a list, or several matched files) becomes an array.
-        return imported.length === 1 && !Array.isArray(imported[0]) && isPlainObject(imported[0])
-            ? imported[0]
-            : imported;
+        const { items, collapsible } = await expandImport(node, file, stack);
+        // One imported document that is itself an object stays an object (a
+        // section like `defaults`). A document holding a list, or several
+        // matched files, stays a list even when it has a single entry.
+        return collapsible ? items[0] : items;
     }
 
     const out: Record<string, any> = {};
@@ -98,11 +97,17 @@ async function expand(node: any, file: string, stack: string[]): Promise<any> {
  * Sibling keys are shallow-merged over every imported object, which gives
  * per-group overrides: `- {$import: evals/hard, trials: 10}`.
  */
-async function expandImport(node: Record<string, any>, file: string, stack: string[]): Promise<any[]> {
+async function expandImport(
+    node: Record<string, any>,
+    file: string,
+    stack: string[]
+): Promise<{ items: any[]; collapsible: boolean }> {
     const { [IMPORT_KEY]: spec, ...overrides } = node;
     const specs = Array.isArray(spec) ? spec : [spec];
 
     const items: any[] = [];
+    let documents = 0;
+    let sawList = false;
     for (const one of specs) {
         if (typeof one !== 'string') {
             throw new Error(`$import expects a path or a list of paths (in ${path.basename(file)})`);
@@ -113,14 +118,18 @@ async function expandImport(node: Record<string, any>, file: string, stack: stri
         }
         for (const target of targets) {
             const doc = await loadFile(target, stack);
+            documents++;
+            sawList ||= Array.isArray(doc);
             items.push(...(Array.isArray(doc) ? doc : [doc]));
         }
     }
 
-    if (Object.keys(overrides).length === 0) return items;
+    const collapsible = documents === 1 && !sawList && isPlainObject(items[0]);
+
+    if (Object.keys(overrides).length === 0) return { items, collapsible };
 
     const expandedOverrides = await expand(overrides, file, stack);
-    return items.map(item => {
+    const merged = items.map(item => {
         if (!isPlainObject(item)) {
             throw new Error(`$import "${specs.join(', ')}" returned a non-object, so the extra keys in ${path.basename(file)} have nothing to override`);
         }
@@ -128,6 +137,8 @@ async function expandImport(node: Record<string, any>, file: string, stack: stri
         // relative paths — spread drops the hidden tag, so re-apply it.
         return tag({ ...item, ...expandedOverrides }, sourceFileOf(item) ?? file);
     });
+
+    return { items: merged, collapsible };
 }
 
 /** Resolve one import spec (a file, a directory, or a glob) to YAML file paths. */

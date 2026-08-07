@@ -53,6 +53,18 @@ tasks:
         expect(config.tasks.map(t => t.name)).toEqual(['a', 'b']);
     });
 
+    it('keeps a single-entry list a list when it is the whole section', async () => {
+        await write('datasets/tasks.yaml', `- ${task('only-one').replace(/\n/g, '\n  ')}
+`);
+        await write('eval.yaml', `version: "1"
+tasks:
+  $import: datasets/tasks.yaml
+`);
+
+        const config = await loadEvalConfig(dir);
+        expect(config.tasks.map(t => t.name)).toEqual(['only-one']);
+    });
+
     it('expands a glob in sorted order and keeps inline tasks', async () => {
         await write('evals/easy/b.yaml', task('easy--b'));
         await write('evals/easy/a.yaml', task('easy--a'));
