@@ -10,9 +10,9 @@
  *   - command: arbitrary user-provided command (bring your own agent)
  */
 import { BaseAgent } from '../types';
-import { GeminiAgent } from './gemini';
+import { GeminiAgent, GeminiAgentConfig } from './gemini';
 import { ClaudeAgent, ClaudeAgentConfig } from './claude';
-import { CodexAgent } from './codex';
+import { CodexAgent, CodexAgentConfig } from './codex';
 import { AcpAgent, AcpAgentConfig } from './acp';
 import { OpenCodeAgent, OpenCodeAgentConfig } from './opencode';
 import { CommandAgent, CommandAgentConfig } from './command';
@@ -21,6 +21,10 @@ import { CommandAgent, CommandAgentConfig } from './command';
 export interface AgentConfig {
     /** Claude-specific configuration */
     claude?: ClaudeAgentConfig;
+    /** Gemini-specific configuration */
+    gemini?: GeminiAgentConfig;
+    /** Codex-specific configuration */
+    codex?: CodexAgentConfig;
     /** ACP-specific configuration */
     acp?: AcpAgentConfig;
     /** OpenCode-specific configuration */
@@ -31,9 +35,9 @@ export interface AgentConfig {
 
 /** Registry of available agent implementations */
 const AGENT_REGISTRY: Record<string, (config?: AgentConfig) => BaseAgent> = {
-    gemini: () => new GeminiAgent(),
+    gemini: (config) => new GeminiAgent(config?.gemini || {}),
     claude: (config) => new ClaudeAgent(config?.claude || {}),
-    codex: () => new CodexAgent(),
+    codex: (config) => new CodexAgent(config?.codex || {}),
     // ACP agent requires config, registered as placeholder
     acp: (config) => new AcpAgent(config?.acp || { command: 'gemini --acp' }),
     opencode: (config) => new OpenCodeAgent(config?.opencode || {}),

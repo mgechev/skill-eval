@@ -135,7 +135,8 @@ function printHelp() {
     --trials=N         Override trial count (overrides preset)
     --parallel=N       Run trials concurrently
     --agent=gemini|claude|codex|acp|opencode|command   Override agent (default: auto-detect from API key)
-    --model=NAME       Model the agent answers with (claude, opencode).
+    --model=NAME       Model the agent answers with (gemini, claude, codex,
+                       opencode).
                        Default: whatever the agent CLI is configured to use.
     --provider=docker|local Override provider (default: docker)
     --acp-command=CMD  ACP agent command (e.g., "gemini --acp")

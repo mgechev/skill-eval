@@ -1,4 +1,5 @@
 import { BaseAgent, CommandResult } from '../types';
+import { shellQuote } from '../utils/shell';
 
 export interface ClaudeAgentConfig {
     /** Model alias or full id, passed straight to `claude --model`. */
@@ -34,8 +35,4 @@ export class ClaudeAgent extends BaseAgent {
 
         return result.stdout + '\n' + result.stderr;
     }
-}
-
-function shellQuote(value: string): string {
-    return `'${value.replace(/'/g, "'\\''")}'`;
 }

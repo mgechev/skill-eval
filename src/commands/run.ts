@@ -18,7 +18,7 @@ import { parseEnvFile } from '../utils/env';
 import { fmt, header, kv, resultsSummary, validationResult } from '../utils/cli';
 
 /** Agents that accept a model on the command line. */
-const MODEL_AWARE_AGENTS = new Set(['claude', 'opencode']);
+const MODEL_AWARE_AGENTS = new Set(['gemini', 'claude', 'codex', 'opencode']);
 
 interface RunOptions {
     eval?: string;       // run specific eval(s) by name (comma-separated)
@@ -29,7 +29,7 @@ interface RunOptions {
     threshold?: number;
     preset?: 'smoke' | 'reliable' | 'regression';
     agent?: string;      // override agent (gemini|claude|codex|acp|opencode|command)
-    model?: string;      // override the model the agent answers with (claude, opencode)
+    model?: string;      // override the model the agent answers with (gemini, claude, codex, opencode)
     provider?: string;   // override provider (docker|local)
     output?: string;     // output directory for reports and temp files
     grader?: string;     // filter graders by type (deterministic|llm_rubric)
@@ -163,6 +163,10 @@ export async function runEvals(dir: string, opts: RunOptions) {
         const agentConfig: AgentConfig = {};
         if (agentName === 'claude') {
             if (modelName) agentConfig.claude = { model: modelName };
+        } else if (agentName === 'gemini') {
+            if (modelName) agentConfig.gemini = { model: modelName };
+        } else if (agentName === 'codex') {
+            if (modelName) agentConfig.codex = { model: modelName };
         } else if (agentName === 'acp') {
             const acpCommand = opts.acpCommand || resolved.acp?.command;
             if (!acpCommand) {
