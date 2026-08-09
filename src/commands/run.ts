@@ -17,6 +17,9 @@ import { ResolvedTask } from '../core/config.types';
 import { parseEnvFile } from '../utils/env';
 import { fmt, header, kv, resultsSummary, validationResult } from '../utils/cli';
 
+/** Agents that accept a model on the command line. */
+const MODEL_AWARE_AGENTS = new Set(['claude', 'opencode']);
+
 interface RunOptions {
     eval?: string;       // run specific eval(s) by name (comma-separated)
     trials?: number;     // override trial count
@@ -26,6 +29,7 @@ interface RunOptions {
     threshold?: number;
     preset?: 'smoke' | 'reliable' | 'regression';
     agent?: string;      // override agent (gemini|claude|codex|acp|opencode|command)
+    model?: string;      // override the model the agent answers with (claude, opencode)
     provider?: string;   // override provider (docker|local)
     output?: string;     // output directory for reports and temp files
     grader?: string;     // filter graders by type (deterministic|llm_rubric)
@@ -105,6 +109,9 @@ export async function runEvals(dir: string, opts: RunOptions) {
     const reports: EvalReport[] = [];
     let allPassed = true;
 
+    // Agents whose CLI takes a model; the rest ignore --model and are told so.
+    const warnedNoModelSupport = new Set<string>();
+
     // Run each task
     for (const taskDef of tasksToRun) {
         const resolved = await resolveTask(taskDef, config.defaults, dir);
@@ -142,10 +149,21 @@ export async function runEvals(dir: string, opts: RunOptions) {
             }
         }
         const providerName = opts.provider || resolved.provider;
+        // CLI flag > task-level override > defaults; undefined means the agent CLI decides
+        const requestedModel = opts.model || resolved.model;
+        // Only reported when it is actually used — printing a model the agent
+        // ignores would make a run look like something it was not.
+        const modelName = MODEL_AWARE_AGENTS.has(agentName) ? requestedModel : undefined;
+        if (requestedModel && !modelName && !warnedNoModelSupport.has(agentName)) {
+            warnedNoModelSupport.add(agentName);
+            console.error(`  ${fmt.red('warning')}  --model is ignored by the "${agentName}" agent`);
+        }
 
         // Build agent config
         const agentConfig: AgentConfig = {};
-        if (agentName === 'acp') {
+        if (agentName === 'claude') {
+            if (modelName) agentConfig.claude = { model: modelName };
+        } else if (agentName === 'acp') {
             const acpCommand = opts.acpCommand || resolved.acp?.command;
             if (!acpCommand) {
                 throw new Error('ACP agent requires a command. Specify via --acp-command or acp.command in eval.yaml');
@@ -160,8 +178,10 @@ export async function runEvals(dir: string, opts: RunOptions) {
             if (opts.openCodeAgent) {
                 agentConfig.opencode.agent = opts.openCodeAgent;
             }
-            if (opts.openCodeModel) {
-                agentConfig.opencode.model = opts.openCodeModel;
+            // --opencode-model predates --model and stays the more specific one
+            const openCodeModel = opts.openCodeModel || modelName;
+            if (openCodeModel) {
+                agentConfig.opencode.model = openCodeModel;
             }
         } else if (agentName === 'command') {
             const command = opts.command || resolved.command;
@@ -209,7 +229,7 @@ export async function runEvals(dir: string, opts: RunOptions) {
             const agent = createAgent(agentName, agentConfig);
 
             header(resolved.name);
-            console.log(`    ${fmt.dim('agent')} ${agentName}  ${fmt.dim('provider')} ${providerName}  ${fmt.dim('trials')} ${trials}${parallel > 1 ? `  ${fmt.dim('parallel')} ${parallel}` : ''}`);
+            console.log(`    ${fmt.dim('agent')} ${agentName}${modelName ? `  ${fmt.dim('model')} ${modelName}` : ''}  ${fmt.dim('provider')} ${providerName}  ${fmt.dim('trials')} ${trials}${parallel > 1 ? `  ${fmt.dim('parallel')} ${parallel}` : ''}`);
             console.log();
 
             try {

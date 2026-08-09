@@ -87,6 +87,47 @@ describe('ClaudeAgent', () => {
     expect(result).toContain('output');
   });
 
+  it('omits --model when no model is configured', async () => {
+    const agent = new ClaudeAgent();
+    const commands: string[] = [];
+    const mockRunCommand = vi.fn().mockImplementation(async (cmd: string): Promise<CommandResult> => {
+      commands.push(cmd);
+      return { stdout: 'output', stderr: '', exitCode: 0 };
+    });
+
+    await agent.run('Test instruction', '/workspace', mockRunCommand);
+
+    expect(commands[1]).not.toContain('--model');
+  });
+
+  it('passes the configured model to the claude CLI', async () => {
+    const agent = new ClaudeAgent({ model: 'claude-opus-5' });
+    const commands: string[] = [];
+    const mockRunCommand = vi.fn().mockImplementation(async (cmd: string): Promise<CommandResult> => {
+      commands.push(cmd);
+      return { stdout: 'output', stderr: '', exitCode: 0 };
+    });
+
+    await agent.run('Test instruction', '/workspace', mockRunCommand);
+
+    expect(commands[1]).toContain("--model 'claude-opus-5'");
+    // the prompt must stay the last argument
+    expect(commands[1].indexOf('--model')).toBeLessThan(commands[1].indexOf('/tmp/.prompt.md'));
+  });
+
+  it('quotes a model containing shell metacharacters', async () => {
+    const agent = new ClaudeAgent({ model: "evil'; rm -rf /" });
+    const commands: string[] = [];
+    const mockRunCommand = vi.fn().mockImplementation(async (cmd: string): Promise<CommandResult> => {
+      commands.push(cmd);
+      return { stdout: 'output', stderr: '', exitCode: 0 };
+    });
+
+    await agent.run('Test instruction', '/workspace', mockRunCommand);
+
+    expect(commands[1]).toContain("--model 'evil'\\''; rm -rf /'");
+  });
+
   it('returns combined stdout and stderr', async () => {
     const agent = new ClaudeAgent();
     const mockRunCommand = vi.fn()
