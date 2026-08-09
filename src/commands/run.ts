@@ -15,7 +15,7 @@ import { createAgent, AgentConfig } from '../agents/registry';
 import { BaseAgent, EvalReport } from '../types';
 import { ResolvedTask } from '../core/config.types';
 import { parseEnvFile } from '../utils/env';
-import { fmt, header, kv, resultsSummary, validationResult } from '../utils/cli';
+import { fmt, header, kv, progress, resultsSummary, validationResult } from '../utils/cli';
 
 /** Agents that accept a model on the command line. */
 const MODEL_AWARE_AGENTS = new Set(['claude', 'opencode']);
@@ -113,7 +113,9 @@ export async function runEvals(dir: string, opts: RunOptions) {
     const warnedNoModelSupport = new Set<string>();
 
     // Run each task
+    let taskIndex = 0;
     for (const taskDef of tasksToRun) {
+        taskIndex++;
         const resolved = await resolveTask(taskDef, config.defaults, dir);
         const trials = opts.trials ?? resolved.trials;
         const parallel = opts.parallel ?? 1;
@@ -228,7 +230,7 @@ export async function runEvals(dir: string, opts: RunOptions) {
             // Normal eval mode
             const agent = createAgent(agentName, agentConfig);
 
-            header(resolved.name);
+            header(`${resolved.name}  ${fmt.dim(`(${taskIndex}/${tasksToRun.length})`)}`);
             console.log(`    ${fmt.dim('agent')} ${agentName}${modelName ? `  ${fmt.dim('model')} ${modelName}` : ''}  ${fmt.dim('provider')} ${providerName}  ${fmt.dim('trials')} ${trials}${parallel > 1 ? `  ${fmt.dim('parallel')} ${parallel}` : ''}`);
             console.log();
 
@@ -252,6 +254,12 @@ export async function runEvals(dir: string, opts: RunOptions) {
                 console.error(`\n  ${fmt.fail('error')}  evaluation failed: ${err}\n`);
                 allPassed = false;
             }
+        }
+
+        // How far through the selected tasks we are. Pointless for a single
+        // task, and the run is otherwise silent about it until the very end.
+        if (tasksToRun.length > 1) {
+            progress(taskIndex, tasksToRun.length);
         }
 
         // Cleanup temp dir

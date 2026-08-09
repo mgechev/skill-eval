@@ -54,6 +54,25 @@ export function trialRow(trialId: number, total: number, reward: number, duratio
     console.log(`${pad}  ${fmt.dim(trialLabel)} ${status}  ${fmt.bold(rewardStr)}  ${fmt.dim(duration.padEnd(7))} ${fmt.dim(commands + ' cmds')}  ${graderStr}`);
 }
 
+/**
+ * Render a fixed-width progress bar: `▓▓▓▓▓░░░░░  10/20  50%`.
+ *
+ * Segments are fixed rather than proportional to the terminal so the bar reads
+ * the same in a narrow pane, in CI logs and in a pasted transcript.
+ */
+export function progressBar(done: number, total: number, segments: number = 10): string {
+    const ratio = total > 0 ? Math.min(1, Math.max(0, done / total)) : 0;
+    const filled = Math.round(ratio * segments);
+    const bar = '▓'.repeat(filled) + '░'.repeat(Math.max(0, segments - filled));
+    const pct = `${Math.round(ratio * 100)}%`;
+    return `${bar}  ${done}/${total}  ${pct}`;
+}
+
+/** Print the progress line shown after each task completes */
+export function progress(done: number, total: number) {
+    console.log(`\n  ${fmt.dim('progress')}    ${progressBar(done, total)}`);
+}
+
 /** Print the results summary block */
 export function resultsSummary(passRate: number, passAtK: number, passPowK: number, trials: number, preset?: string) {
     const presetLabel = preset === 'smoke' ? ' (smoke test)'
