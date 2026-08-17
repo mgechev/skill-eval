@@ -1,4 +1,5 @@
 import { BaseAgent, CommandResult, AgentResult, SkillTriggerInfo } from '../types';
+import { shellQuote } from '../utils/shell';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
@@ -86,7 +87,19 @@ function parseCodexJsonOutput(rawOutput: string): AgentResult {
     };
 }
 
+export interface CodexAgentConfig {
+    /** Model name, passed straight to `codex exec --model`. */
+    model?: string;
+}
+
 export class CodexAgent extends BaseAgent {
+    private config: CodexAgentConfig;
+
+    constructor(config: CodexAgentConfig = {}) {
+        super();
+        this.config = config;
+    }
+
     /**
      * Read API keys from ~/.codex/auth.json
      * Returns environment variables to inject for codex CLI
@@ -136,7 +149,8 @@ export class CodexAgent extends BaseAgent {
         // Use --json for structured JSONL output, --ephemeral to avoid writing session files
         // codex exec runs non-interactively; --full-auto enables sandboxed auto-execution
         // --skip-git-repo-check allows running in non-git temp directories
-        const command = `cat /tmp/.prompt.md | codex exec --full-auto --skip-git-repo-check --json --ephemeral`;
+        const model = this.config.model ? ` --model ${shellQuote(this.config.model)}` : '';
+        const command = `cat /tmp/.prompt.md | codex exec --full-auto --skip-git-repo-check --json --ephemeral${model}`;
         const result = await runCommand(command, Object.keys(envVars).length > 0 ? envVars : undefined);
 
         if (result.exitCode !== 0) {

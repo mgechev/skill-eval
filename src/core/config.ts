@@ -152,6 +152,7 @@ function validateConfig(raw: any): EvalConfig {
             expected: t.expected,
             metadata: t.metadata,
             agent: t.agent,
+            model: t.model,
             command: t.command,
             provider: t.provider,
             trials: t.trials,
@@ -177,6 +178,7 @@ export async function resolveTask(
 ): Promise<ResolvedTask> {
     // Merge defaults with task overrides
     const agent = task.agent || defaults.agent;
+    const model = task.model || defaults.model;
     const command = task.command || defaults.command;
     const provider = task.provider || defaults.provider;
     const trials = task.trials ?? defaults.trials;
@@ -237,6 +239,7 @@ export async function resolveTask(
         expected: task.expected,
         metadata: task.metadata,
         agent,
+        model,
         command,
         provider,
         trials,

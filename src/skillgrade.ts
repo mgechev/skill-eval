@@ -112,6 +112,7 @@ async function main() {
         threshold: getFlag('threshold') ? parseFloat(getFlag('threshold')!) : undefined,
         preset,
         agent: getFlag('agent'),
+        model: getFlag('model'),
         provider: getFlag('provider'),
         grader: getFlag('grader'),
         output: outputDir,
@@ -154,6 +155,9 @@ function printHelp() {
     --trials=N         Override trial count (overrides preset)
     --parallel=N       Run trials concurrently
     --agent=gemini|claude|codex|acp|opencode|command   Override agent (default: auto-detect from API key)
+    --model=NAME       Model the agent answers with (gemini, claude, codex,
+                       opencode).
+                       Default: whatever the agent CLI is configured to use.
     --provider=docker|local Override provider (default: docker)
     --acp-command=CMD  ACP agent command (e.g., "gemini --acp")
     --command=CMD      Command to run for the 'command' agent (e.g., "node mycli.js")
@@ -179,6 +183,7 @@ function printHelp() {
     skillgrade --filter-pattern='^easy--' --list   # preview a selection
     skillgrade --regression --ci   # CI regression with 30 trials
     skillgrade --agent=acp --acp-command="gemini --acp"  # use ACP-compatible agent
+    skillgrade --agent=claude --model=opus         # compare models on one suite
     skillgrade preview browser     # open web UI
 `);
 }

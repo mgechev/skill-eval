@@ -60,6 +60,7 @@ Reports are saved to `$TMPDIR/skillgrade/<skill-name>/results/`. Override with `
 | `--trials=N` | Override trial count |
 | `--parallel=N` | Run trials concurrently |
 | `--agent=gemini\|claude\|codex\|acp\|opencode\|command` | Override agent (default: auto-detect from API key) |
+| `--model=NAME` | Model the agent answers with (`gemini`, `claude`, `codex`, `opencode`). Default: whatever the agent CLI is configured to use |
 | `--provider=docker\|local` | Override provider |
 | `--acp-command=CMD` | ACP agent command (e.g., `gemini --acp`) |
 | `--command=CMD` | Command to run for the `command` agent (e.g., `node mycli.js`) |
@@ -81,6 +82,7 @@ version: "1"
 
 defaults:
   agent: gemini          # gemini | claude | codex | acp | opencode | command
+  model: claude-opus-5   # model the agent answers with (gemini, claude, codex, opencode)
   provider: docker       # docker | local
   trials: 5
   timeout: 300           # seconds
@@ -126,6 +128,7 @@ tasks:
 
     # Per-task overrides (optional)
     agent: claude
+    model: claude-sonnet-5       # override the model for this task only
     grader_provider: anthropic   # override default LLM grader provider
     trials: 10
     timeout: 600

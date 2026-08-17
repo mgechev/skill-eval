@@ -3,6 +3,7 @@ import { GeminiAgent } from '../src/agents/gemini';
 import { ClaudeAgent } from '../src/agents/claude';
 import { OpenCodeAgent } from '../src/agents/opencode';
 import { CommandAgent } from '../src/agents/command';
+import { CodexAgent } from '../src/agents/codex';
 import { CommandResult } from '../src/types';
 
 beforeEach(() => {
@@ -27,6 +28,34 @@ describe('GeminiAgent', () => {
     expect(commands[1]).toContain('-y');
     expect(commands[1]).toContain('--sandbox=none');
     expect(result).toContain('output');
+  });
+
+  it('omits --model when no model is configured', async () => {
+    const agent = new GeminiAgent();
+    const commands: string[] = [];
+    const mockRunCommand = vi.fn().mockImplementation(async (cmd: string): Promise<CommandResult> => {
+      commands.push(cmd);
+      return { stdout: 'output', stderr: '', exitCode: 0 };
+    });
+
+    await agent.run('Test instruction', '/workspace', mockRunCommand);
+
+    expect(commands[1]).not.toContain('--model');
+  });
+
+  it('passes the configured model to the gemini CLI', async () => {
+    const agent = new GeminiAgent({ model: 'gemini-3-flash-preview' });
+    const commands: string[] = [];
+    const mockRunCommand = vi.fn().mockImplementation(async (cmd: string): Promise<CommandResult> => {
+      commands.push(cmd);
+      return { stdout: 'output', stderr: '', exitCode: 0 };
+    });
+
+    await agent.run('Test instruction', '/workspace', mockRunCommand);
+
+    expect(commands[1]).toContain("--model 'gemini-3-flash-preview'");
+    // -p and the prompt must stay last
+    expect(commands[1].indexOf('--model')).toBeLessThan(commands[1].indexOf('-p'));
   });
 
   it('returns combined stdout and stderr', async () => {
@@ -85,6 +114,47 @@ describe('ClaudeAgent', () => {
     expect(commands[1]).toContain('-p');
     expect(commands[1]).toContain('--dangerously-skip-permissions');
     expect(result).toContain('output');
+  });
+
+  it('omits --model when no model is configured', async () => {
+    const agent = new ClaudeAgent();
+    const commands: string[] = [];
+    const mockRunCommand = vi.fn().mockImplementation(async (cmd: string): Promise<CommandResult> => {
+      commands.push(cmd);
+      return { stdout: 'output', stderr: '', exitCode: 0 };
+    });
+
+    await agent.run('Test instruction', '/workspace', mockRunCommand);
+
+    expect(commands[1]).not.toContain('--model');
+  });
+
+  it('passes the configured model to the claude CLI', async () => {
+    const agent = new ClaudeAgent({ model: 'claude-opus-5' });
+    const commands: string[] = [];
+    const mockRunCommand = vi.fn().mockImplementation(async (cmd: string): Promise<CommandResult> => {
+      commands.push(cmd);
+      return { stdout: 'output', stderr: '', exitCode: 0 };
+    });
+
+    await agent.run('Test instruction', '/workspace', mockRunCommand);
+
+    expect(commands[1]).toContain("--model 'claude-opus-5'");
+    // the prompt must stay the last argument
+    expect(commands[1].indexOf('--model')).toBeLessThan(commands[1].indexOf('/tmp/.prompt.md'));
+  });
+
+  it('quotes a model containing shell metacharacters', async () => {
+    const agent = new ClaudeAgent({ model: "evil'; rm -rf /" });
+    const commands: string[] = [];
+    const mockRunCommand = vi.fn().mockImplementation(async (cmd: string): Promise<CommandResult> => {
+      commands.push(cmd);
+      return { stdout: 'output', stderr: '', exitCode: 0 };
+    });
+
+    await agent.run('Test instruction', '/workspace', mockRunCommand);
+
+    expect(commands[1]).toContain("--model 'evil'\\''; rm -rf /'");
   });
 
   it('returns combined stdout and stderr', async () => {
@@ -174,6 +244,35 @@ describe('OpenCodeAgent', () => {
     const result = await agent.run('test', '/workspace', mockRunCommand);
     expect(result).toContain('success');
     expect(result).toContain('warning');
+  });
+});
+
+describe('CodexAgent', () => {
+  it('omits --model when no model is configured', async () => {
+    const agent = new CodexAgent();
+    const commands: string[] = [];
+    const mockRunCommand = vi.fn().mockImplementation(async (cmd: string): Promise<CommandResult> => {
+      commands.push(cmd);
+      return { stdout: '', stderr: '', exitCode: 0 };
+    });
+
+    await agent.run('Test instruction', '/workspace', mockRunCommand);
+
+    expect(commands[1]).toContain('codex exec');
+    expect(commands[1]).not.toContain('--model');
+  });
+
+  it('passes the configured model to the codex CLI', async () => {
+    const agent = new CodexAgent({ model: 'gpt-5.6-codex' });
+    const commands: string[] = [];
+    const mockRunCommand = vi.fn().mockImplementation(async (cmd: string): Promise<CommandResult> => {
+      commands.push(cmd);
+      return { stdout: '', stderr: '', exitCode: 0 };
+    });
+
+    await agent.run('Test instruction', '/workspace', mockRunCommand);
+
+    expect(commands[1]).toContain("--model 'gpt-5.6-codex'");
   });
 });
 

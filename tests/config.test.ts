@@ -399,6 +399,30 @@ describe('resolveTask', () => {
     expect(resolved.docker.base).toBe('node:20-slim');
   });
 
+  it('leaves model undefined when neither task nor defaults set one', async () => {
+    const task: EvalTaskConfig = {
+      name: 'test-task',
+      instruction: 'multi\nline',
+      graders: [{ type: 'deterministic', run: 'echo ok', weight: 1.0 }],
+    };
+
+    const resolved = await resolveTask(task, defaults, '/base');
+    expect(resolved.model).toBeUndefined();
+  });
+
+  it('inherits model from defaults and lets a task override it', async () => {
+    const defaultsWithModel: EvalDefaults = { ...defaults, model: 'claude-sonnet-5' };
+    const inherits: EvalTaskConfig = {
+      name: 'inherits',
+      instruction: 'multi\nline',
+      graders: [{ type: 'deterministic', run: 'echo ok', weight: 1.0 }],
+    };
+    const overrides: EvalTaskConfig = { ...inherits, name: 'overrides', model: 'claude-opus-5' };
+
+    expect((await resolveTask(inherits, defaultsWithModel, '/base')).model).toBe('claude-sonnet-5');
+    expect((await resolveTask(overrides, defaultsWithModel, '/base')).model).toBe('claude-opus-5');
+  });
+
   it('resolves grader_provider on the task level', async () => {
     const defaultsWitProvider: EvalDefaults = {
       ...defaults,
