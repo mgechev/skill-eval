@@ -18,6 +18,7 @@
  *   --preview          Open results after running
  */
 
+import { parseFilter } from './core/filter';
 import { runInit } from './commands/init';
 import { runEvals } from './commands/run';
 import { runPreview } from './commands/preview';
@@ -30,8 +31,12 @@ async function main() {
     const command = args[0];
     const cwd = process.cwd();
 
-    // Parse global flags
-    const getFlag = (name: string) => args.find(a => a.startsWith(`--${name}=`))?.split('=')[1];
+    // Parse global flags. Values may contain "=" (regexes, filter values), so
+    // take everything after the first one; repeatable flags collect every match.
+    const getFlags = (name: string) => args
+        .filter(a => a.startsWith(`--${name}=`))
+        .map(a => a.slice(`--${name}=`.length));
+    const getFlag = (name: string) => getFlags(name)[0];
     const hasFlag = (name: string) => args.includes(`--${name}`);
 
     if (command === '--help' || command === '-h') {
@@ -90,8 +95,16 @@ async function main() {
 
     const outputDir = getFlag('output') || path.join(os.tmpdir(), 'skillgrade');
 
+    const filters = [
+        ...getFlags('filter').map(spec => parseFilter(spec, false)),
+        ...getFlags('not-filter').map(spec => parseFilter(spec, true)),
+    ];
+
     await runEvals(cwd, {
         eval: evalFilter,
+        filters,
+        filterPattern: getFlag('filter-pattern'),
+        list: hasFlag('list'),
         trials: explicitTrials ?? presetTrials,
         parallel: getFlag('parallel') ? parseInt(getFlag('parallel')!) : undefined,
         validate: hasFlag('validate'),
@@ -128,8 +141,15 @@ function printHelp() {
     --reliable         Reliable pass rate (15 trials, reports mean reward)
     --regression       High-confidence regression (30 trials, reports pass^k)
 
-  Options:
+  Selecting tasks:
     --eval=NAME[,NAME] Run specific evals by name (comma-separated)
+    --filter=KEY=VAL   Keep tasks whose metadata matches (repeatable).
+                       Comma-separated values are OR; repeated flags are AND.
+    --not-filter=KEY=VAL   Drop tasks whose metadata matches (repeatable)
+    --filter-pattern=RE    Keep tasks whose name matches a regex
+    --list             Print the selected tasks and exit without running
+
+  Options:
     --grader=TYPE      Run only graders of this type (deterministic|llm_rubric)
     --trials=N         Override trial count (overrides preset)
     --parallel=N       Run trials concurrently
@@ -153,6 +173,10 @@ function printHelp() {
     skillgrade --smoke             # quick 5-trial smoke test
     skillgrade --eval=fix-linting  # run a specific eval
     skillgrade --eval=foo,bar      # run multiple evals
+    skillgrade --filter=tier=easy,medium           # by metadata, OR within a key
+    skillgrade --filter=tier=hard --filter=form=refuse   # AND across keys
+    skillgrade --filter=tags=smoke --not-filter=tags=flaky
+    skillgrade --filter-pattern='^easy--' --list   # preview a selection
     skillgrade --regression --ci   # CI regression with 30 trials
     skillgrade --agent=acp --acp-command="gemini --acp"  # use ACP-compatible agent
     skillgrade preview browser     # open web UI

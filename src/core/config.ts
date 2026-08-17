@@ -13,6 +13,7 @@ import {
     EnvironmentConfig,
     AcpConfig,
 } from './config.types';
+import { loadYamlWithImports, sourceFileOf } from './imports';
 
 // We use a simple YAML parser — js-yaml is the standard
 // For now, we'll use a lightweight approach: JSON-compatible YAML subset
@@ -41,16 +42,8 @@ export async function loadEvalConfig(dir: string): Promise<EvalConfig> {
         throw new Error(`No eval.yaml found in ${dir}`);
     }
 
-    // Dynamically import js-yaml
-    let yaml: any;
-    try {
-        yaml = require('js-yaml');
-    } catch {
-        throw new Error('js-yaml is required. Run: npm install js-yaml');
-    }
-
-    const content = await fs.readFile(yamlPath, 'utf-8');
-    const raw = yaml.load(content) as any;
+    // Sections may live in other files — expand every `$import` first
+    const raw = await loadYamlWithImports(yamlPath);
 
     return validateConfig(raw);
 }
@@ -122,6 +115,10 @@ function validateConfig(raw: any): EvalConfig {
             throw new Error(`Task "${t.name}" uses the "command" agent but no command is set (add a "command" to the task or defaults)`);
         }
 
+        if (t.metadata !== undefined && (typeof t.metadata !== 'object' || t.metadata === null || Array.isArray(t.metadata))) {
+            throw new Error(`Task "${t.name}" has a "metadata" that is not an object — metadata holds key/value labels used by --filter`);
+        }
+
         const workspace: WorkspaceMapping[] = (t.workspace || []).map((w: any) => {
             if (typeof w === 'string') {
                 // Support shorthand: "fixtures/app.js" → same filename in workspace
@@ -152,6 +149,8 @@ function validateConfig(raw: any): EvalConfig {
                 };
             }),
             solution: t.solution,
+            expected: t.expected,
+            metadata: t.metadata,
             agent: t.agent,
             command: t.command,
             provider: t.provider,
@@ -161,6 +160,7 @@ function validateConfig(raw: any): EvalConfig {
             grader_provider: t.grader_provider,
             docker: t.docker,
             environment: t.environment,
+            sourceFile: sourceFileOf(t),
         };
     });
 
@@ -193,8 +193,15 @@ export async function resolveTask(
     const grader_provider = task.grader_provider || defaults.grader_provider;
     const acp = defaults.acp;  // ACP config is only at defaults level
 
+    // An imported task's relative paths belong to its own directory first,
+    // then fall back to the eval root so shared graders/fixtures keep working.
+    const baseDirs = [...new Set([
+        ...(task.sourceFile ? [path.dirname(task.sourceFile)] : []),
+        baseDir,
+    ])];
+
     // Resolve instruction — could be inline text or file path
-    const instruction = await resolveFileOrInline(task.instruction, baseDir);
+    const instruction = await resolveFileOrInline(task.instruction, baseDirs);
 
     // Resolve graders
     const graders: ResolvedGrader[] = await Promise.all(
@@ -207,10 +214,10 @@ export async function resolveTask(
                 weight: g.weight,
             };
             if (g.type === 'deterministic' && g.run) {
-                resolved.run = await resolveFileOrInline(g.run, baseDir);
+                resolved.run = await resolveFileOrInline(g.run, baseDirs);
             }
             if (g.type === 'llm_rubric' && g.rubric) {
-                resolved.rubric = await resolveFileOrInline(g.rubric, baseDir);
+                resolved.rubric = await resolveFileOrInline(g.rubric, baseDirs);
             }
             return resolved;
         })
@@ -218,7 +225,7 @@ export async function resolveTask(
 
     // Resolve solution path
     const solution = task.solution
-        ? path.resolve(baseDir, task.solution)
+        ? await resolveExistingPath(task.solution, baseDirs)
         : undefined;
 
     return {
@@ -227,6 +234,8 @@ export async function resolveTask(
         workspace: task.workspace || [],
         graders,
         solution,
+        expected: task.expected,
+        metadata: task.metadata,
         agent,
         command,
         provider,
@@ -237,6 +246,7 @@ export async function resolveTask(
         acp,
         docker,
         environment,
+        baseDirs,
     };
 }
 
@@ -244,17 +254,28 @@ export async function resolveTask(
  * If value looks like a file path and the file exists, read it.
  * Otherwise return the value as-is (inline content).
  */
-async function resolveFileOrInline(value: string, baseDir: string): Promise<string> {
+async function resolveFileOrInline(value: string, baseDirs: string[]): Promise<string> {
     const trimmed = value.trim();
 
     // Multi-line strings are always inline content
     if (trimmed.includes('\n')) return trimmed;
 
     // Check if it could be a file path (no spaces except in path, has extension)
-    const candidate = path.resolve(baseDir, trimmed);
-    if (await fs.pathExists(candidate)) {
-        return (await fs.readFile(candidate, 'utf-8')).trim();
+    for (const baseDir of baseDirs) {
+        const candidate = path.resolve(baseDir, trimmed);
+        if (await fs.pathExists(candidate)) {
+            return (await fs.readFile(candidate, 'utf-8')).trim();
+        }
     }
 
     return trimmed;
+}
+
+/** Resolve a relative path against the first base dir that contains it. */
+async function resolveExistingPath(value: string, baseDirs: string[]): Promise<string> {
+    for (const baseDir of baseDirs) {
+        const candidate = path.resolve(baseDir, value);
+        if (await fs.pathExists(candidate)) return candidate;
+    }
+    return path.resolve(baseDirs[baseDirs.length - 1], value);
 }

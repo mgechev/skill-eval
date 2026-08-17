@@ -11,6 +11,20 @@ export interface GraderConfig {
     model?: string;                               // for llm_rubric: LLM model override
     provider?: 'gemini' | 'anthropic' | 'openai'; // for llm_rubric: which LLM API to call (default: 'gemini')
     weight: number;
+    input?: GraderInput;                          // task context handed to the grader at grade time
+}
+
+/**
+ * What a grader is told about the task it is scoring. Deterministic graders
+ * receive it as JSON in `SKILLGRADE_INPUT`; llm_rubric graders get `expected`
+ * as a prompt section. It is assembled after the agent has exited, so none of
+ * it can reach the agent.
+ */
+export interface GraderInput {
+    task: string;
+    trial: number;
+    expected?: unknown;
+    metadata?: Record<string, unknown>;
 }
 
 export interface GraderResult {
@@ -68,6 +82,7 @@ export interface AgentResult {
 
 export interface EvalReport {
     task: string;
+    metadata?: Record<string, unknown>;   // task labels, recorded so results can be sliced by column
     pass_rate: number;
     pass_at_k: number;        // probability of ≥1 success in k trials
     pass_pow_k: number;       // probability of all k trials succeeding

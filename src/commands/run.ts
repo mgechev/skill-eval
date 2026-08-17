@@ -7,6 +7,7 @@ import * as fs from 'fs-extra';
 import * as path from 'path';
 import * as os from 'os';
 import { loadEvalConfig, resolveTask } from '../core/config';
+import { TaskFilter, describeSelection, metadataKeys, selectTasks } from '../core/filter';
 import { detectSkills } from '../core/skills';
 import { DockerProvider } from '../providers/docker';
 import { LocalProvider } from '../providers/local';
@@ -19,6 +20,9 @@ import { fmt, header, kv, resultsSummary, validationResult } from '../utils/cli'
 
 interface RunOptions {
     eval?: string;       // run specific eval(s) by name (comma-separated)
+    filters?: TaskFilter[];   // --filter / --not-filter over task metadata
+    filterPattern?: string;   // --filter-pattern regex over task names
+    list?: boolean;           // print the selection and run nothing
     trials?: number;     // override trial count
     parallel?: number;
     validate?: boolean;
@@ -81,16 +85,41 @@ export async function runEvals(dir: string, opts: RunOptions) {
         }
     }
 
-    // Filter evals
-    let tasksToRun = config.tasks;
-    if (opts.eval) {
-        const evalNames = opts.eval.split(',').map(s => s.trim());
-        tasksToRun = config.tasks.filter(t => evalNames.includes(t.name));
-        if (tasksToRun.length === 0) {
-            console.error(`  ${fmt.red('error')}  eval "${opts.eval}" not found`);
+    // Select which of the tasks to run: by name, by name pattern, by metadata
+    let tasksToRun;
+    try {
+        tasksToRun = selectTasks(config.tasks, {
+            names: opts.eval?.split(',').map(s => s.trim()).filter(Boolean),
+            filters: opts.filters,
+            pattern: opts.filterPattern,
+        });
+    } catch (err) {
+        console.error(`  ${fmt.red('error')}  ${err instanceof Error ? err.message : err}`);
+        if (opts.eval) {
             console.log(`  ${fmt.dim('available:')} ${config.tasks.map(t => t.name).join(', ')}`);
-            throw new Error(`Eval "${opts.eval}" not found`);
         }
+        throw err;
+    }
+
+    const narrowed = tasksToRun.length !== config.tasks.length;
+    if (narrowed) {
+        kv('selected', `${tasksToRun.length} of ${config.tasks.length} tasks`);
+    }
+
+    if (opts.list) {
+        header(`tasks (${tasksToRun.length})`);
+        for (const line of describeSelection(tasksToRun)) {
+            console.log(`    ${line}`);
+        }
+        const keys = metadataKeys(config.tasks);
+        console.log(`\n  ${fmt.dim('metadata keys:')} ${keys.join(', ') || '(none)'}\n`);
+        return;
+    }
+
+    if (tasksToRun.length === 0) {
+        console.error(`  ${fmt.red('error')}  no tasks match the selection`);
+        console.log(`  ${fmt.dim('metadata keys:')} ${metadataKeys(config.tasks).join(', ') || '(none)'}`);
+        throw new Error('No tasks match the selection');
     }
 
     // Output directory
@@ -124,6 +153,8 @@ export async function runEvals(dir: string, opts: RunOptions) {
             timeoutSec: resolved.timeout,
             graderModel: resolved.grader_model,
             graderProvider: resolved.grader_provider,
+            expected: resolved.expected,
+            metadata: resolved.metadata,
             environment: resolved.environment,
         };
 
@@ -257,6 +288,16 @@ export async function runEvals(dir: string, opts: RunOptions) {
 export async function prepareTempTaskDir(resolved: ResolvedTask, baseDir: string, tmpDir: string) {
     await fs.ensureDir(tmpDir);
 
+    // An imported task looks for its files next to its own file first
+    const baseDirs = resolved.baseDirs?.length ? resolved.baseDirs : [baseDir];
+    const findSrc = async (ref: string) => {
+        for (const dir of baseDirs) {
+            const candidate = path.resolve(dir, ref);
+            if (await fs.pathExists(candidate)) return candidate;
+        }
+        return null;
+    };
+
     // Write each deterministic grader script
     await fs.ensureDir(path.join(tmpDir, 'tests'));
     const detGraders = resolved.graders.filter(g => g.type === 'deterministic');
@@ -274,9 +315,9 @@ export async function prepareTempTaskDir(resolved: ResolvedTask, baseDir: string
             const pathMatches = g.run.match(/[\w./-]+\.\w{1,4}/g) || [];
             for (const ref of pathMatches) {
                 const refDir = ref.split('/')[0];
-                const srcDir = path.resolve(baseDir, refDir);
+                const srcDir = await findSrc(refDir);
                 const destDir = path.join(tmpDir, refDir);
-                if (refDir !== ref && await fs.pathExists(srcDir) && !await fs.pathExists(destDir)) {
+                if (refDir !== ref && srcDir && !await fs.pathExists(destDir)) {
                     await fs.copy(srcDir, destDir);
                 }
             }
@@ -326,8 +367,8 @@ export async function prepareTempTaskDir(resolved: ResolvedTask, baseDir: string
 
     // Copy workspace files
     for (const w of resolved.workspace) {
-        const srcPath = path.resolve(baseDir, w.src);
-        if (await fs.pathExists(srcPath)) {
+        const srcPath = await findSrc(w.src);
+        if (srcPath) {
             if (resolved.provider === 'local') {
                 // For local provider: copy directly to destination path in tmpDir
                 const destPath = path.join(tmpDir, w.dest);

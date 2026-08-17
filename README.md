@@ -138,6 +138,103 @@ instruction: instructions/fix-linting.md
 rubric: rubrics/workflow-quality.md
 ```
 
+### Reference output and metadata
+
+A task can carry the row's answer key and a set of labels:
+
+```yaml
+- name: easy--tooltip-token
+  instruction: |
+    Report the background colour token of the Tooltip's default variant.
+    Write {"token": "..."} to answer.json.
+  expected:                 # the answer key — graders only, never the agent
+    token: Brand/100
+    variants: [default, hover]
+  metadata:                 # labels for --filter, recorded with the results
+    tier: easy
+    form: open
+    tags: [smoke]
+  graders:
+    - type: deterministic
+      run: node graders/check-token.mjs
+```
+
+Both are optional: a task without `expected` is scored purely on what its
+graders measure, so golden-truth and metric-style tasks live in the same suite.
+
+skillgrade **delivers `expected`, it never interprets it** — comparison is the
+grader's job. A deterministic grader receives the task context as one JSON
+document in `SKILLGRADE_INPUT`, so `expected` keeps its structure:
+
+```js
+// graders/check-token.mjs — one script for every token task
+const { task, trial, expected, metadata } = JSON.parse(process.env.SKILLGRADE_INPUT);
+const answer = JSON.parse(fs.readFileSync('answer.json', 'utf8'));   // cwd is the workspace
+
+console.log(JSON.stringify({
+  score: answer.token === expected.token ? 1 : 0,
+  details: `${task}: want ${expected.token}, got ${answer.token ?? '(none)'}`,
+}));
+```
+
+```bash
+# or from a shell grader
+want=$(jq -r .expected.token <<< "$SKILLGRADE_INPUT")
+```
+
+An `llm_rubric` grader gets `expected` as an `## Expected Output` section in its
+prompt. Both channels are built after the agent process has exited, and neither
+writes to the workspace — unlike `run:` and `rubric:`, which are staged into the
+agent's working directory before it starts, so keep answer keys out of those.
+
+### Selecting which tasks to run
+
+`metadata` is what `--filter` selects on. Values are OR within a key and AND
+across keys; `--filter` and `--not-filter` are repeatable:
+
+```bash
+skillgrade --filter=tier=easy,medium              # easy OR medium
+skillgrade --filter=tier=hard --filter=form=refuse    # hard AND refuse
+skillgrade --filter=tags=smoke --not-filter=tags=flaky
+skillgrade --filter-pattern='^easy--'             # regex over task names
+skillgrade --filter=tier=easy --list              # print the selection, run nothing
+```
+
+A filter on a key that no task declares is an error rather than a silent
+match-everything — `--filter=teir=easy` should not quietly run the whole suite.
+Filters work the same whether the tasks are inline or imported.
+
+### Splitting eval.yaml across files
+
+Any section can live in another file. `$import` takes a file, a directory (every
+`.yaml`/`.yml` inside it, sorted), a glob, or a list of those:
+
+```yaml
+version: "1"
+
+defaults:
+  $import: shared/defaults.yaml   # merged in place — keys below win
+  trials: 3
+
+tasks:
+  - $import: evals/easy/*.yaml    # one task per file, or a file holding a list
+  - $import: evals/hard           # a whole directory
+    trials: 10                    # applied to every task it imports
+  - name: still-inline            # inline tasks keep working
+    instruction: ...
+    graders: [...]
+```
+
+Each imported file is a normal YAML document — a single task, a list of tasks, or
+an object for a section like `defaults`. Imported files may import further files;
+paths are relative to the file that contains the `$import`, and cycles are an error.
+
+A task keeps working when you move it into its own file: **its relative paths
+resolve against its own directory first, then the eval root.** So
+`evals/easy/one.yaml` can say `instruction: instruction.md` for the file next to it
+while still pointing `run: node graders/check.mjs` at the shared graders directory
+at the root.
+
 ## Graders
 
 ### Deterministic

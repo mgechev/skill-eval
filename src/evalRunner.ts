@@ -67,6 +67,8 @@ export interface EvalRunOptions {
     graderModel?: string;       // default LLM grader model
     graderProvider?: 'gemini' | 'anthropic' | 'openai';  // default LLM grader provider
     graderTimeoutSec?: number;  // timeout per grader (default: 120s)
+    expected?: unknown;                     // reference output handed to graders
+    metadata?: Record<string, unknown>;     // task labels handed to graders and recorded with results
     environment: {
         cpus: number;
         memory_mb: number;
@@ -132,6 +134,7 @@ export class EvalRunner {
 
         const report: EvalReport = {
             task: taskName,
+            metadata: opts.metadata,
             pass_rate: totalReward / numTrials,
             pass_at_k: calculatePassAtK(numTrials, successes, numTrials),
             pass_pow_k: calculatePassPowK(numTrials, successes, numTrials),
@@ -247,6 +250,14 @@ export class EvalRunner {
                     model: graderDef.model || opts.graderModel,
                     provider: graderDef.provider || opts.graderProvider,
                     weight: graderDef.weight,
+                    // Assembled here, after the agent has exited — so the
+                    // reference answer cannot reach the agent.
+                    input: {
+                        task: path.basename(taskPath),
+                        trial: index,
+                        expected: opts.expected,
+                        metadata: opts.metadata,
+                    },
                 };
 
                 const graderTimeoutMs = (opts.graderTimeoutSec ?? 120) * 1000;
