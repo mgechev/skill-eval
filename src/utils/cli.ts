@@ -25,9 +25,15 @@ export const fmt = {
     fail: (s: string) => `${bold}${red}${s}${reset}`,
 };
 
+/** Printable width of a string, ignoring any ANSI escape sequences in it. */
+function visibleLength(s: string): number {
+    // eslint-disable-next-line no-control-regex
+    return s.replace(/\x1b\[[0-9;]*m/g, '').length;
+}
+
 /** Print a section header with a rule line */
 export function header(title: string, width: number = 60) {
-    const rule = '─'.repeat(Math.max(0, width - title.length - 3));
+    const rule = '─'.repeat(Math.max(0, width - visibleLength(title) - 3));
     console.log(`\n${fmt.bold(`── ${title} `)}${fmt.dim(rule)}`);
 }
 
@@ -52,6 +58,25 @@ export function trialRow(trialId: number, total: number, reward: number, duratio
     }).join('  ');
 
     console.log(`${pad}  ${fmt.dim(trialLabel)} ${status}  ${fmt.bold(rewardStr)}  ${fmt.dim(duration.padEnd(7))} ${fmt.dim(commands + ' cmds')}  ${graderStr}`);
+}
+
+/**
+ * Render a fixed-width progress bar: `▓▓▓▓▓░░░░░  10/20  50%`.
+ *
+ * Segments are fixed rather than proportional to the terminal so the bar reads
+ * the same in a narrow pane, in CI logs and in a pasted transcript.
+ */
+export function progressBar(done: number, total: number, segments: number = 10): string {
+    const ratio = total > 0 ? Math.min(1, Math.max(0, done / total)) : 0;
+    const filled = Math.round(ratio * segments);
+    const bar = '▓'.repeat(filled) + '░'.repeat(Math.max(0, segments - filled));
+    const pct = `${Math.round(ratio * 100)}%`;
+    return `${bar}  ${done}/${total}  ${pct}`;
+}
+
+/** Print the progress line shown after each task completes */
+export function progress(done: number, total: number) {
+    console.log(`\n  ${fmt.dim('progress')}    ${progressBar(done, total)}`);
 }
 
 /** Print the results summary block */
