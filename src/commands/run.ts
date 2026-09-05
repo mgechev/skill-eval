@@ -21,6 +21,21 @@ import { fmt, header, kv, progress, resultsSummary, validationResult } from '../
 /** Agents that accept a model on the command line. */
 const MODEL_AWARE_AGENTS = new Set(['gemini', 'claude', 'codex', 'opencode']);
 
+/**
+ * What to print for --model in the run header.
+ *
+ * An agent with no model concept (acp, command) gets nothing — there is
+ * nothing true to say. A model-aware agent always gets a line: the pinned
+ * value, or "default" when none was given. Without this, running claude with
+ * no --model silently answers with whatever the account default is, which is
+ * exactly the case that most needs to be visible — it's the one nothing else
+ * reports, and it can change under you.
+ */
+export function modelLabel(agentName: string, requestedModel: string | undefined): string | undefined {
+    if (!MODEL_AWARE_AGENTS.has(agentName)) return undefined;
+    return requestedModel || 'default';
+}
+
 interface RunOptions {
     eval?: string;       // run specific eval(s) by name (comma-separated)
     filters?: TaskFilter[];   // --filter / --not-filter over task metadata
@@ -184,8 +199,9 @@ export async function runEvals(dir: string, opts: RunOptions) {
         const providerName = opts.provider || resolved.provider;
         // CLI flag > task-level override > defaults; undefined means the agent CLI decides
         const requestedModel = opts.model || resolved.model;
-        // Only reported when it is actually used — printing a model the agent
-        // ignores would make a run look like something it was not.
+        // Only PASSED to the agent CLI when actually given — forwarding a model
+        // the agent ignores would make a run look like something it was not.
+        // The header line shows more than this: see modelLabel().
         const modelName = MODEL_AWARE_AGENTS.has(agentName) ? requestedModel : undefined;
         if (requestedModel && !modelName && !warnedNoModelSupport.has(agentName)) {
             warnedNoModelSupport.add(agentName);
@@ -266,7 +282,8 @@ export async function runEvals(dir: string, opts: RunOptions) {
             const agent = createAgent(agentName, agentConfig);
 
             header(`${resolved.name}  ${fmt.dim(`(${taskIndex}/${tasksToRun.length})`)}`);
-            console.log(`    ${fmt.dim('agent')} ${agentName}${modelName ? `  ${fmt.dim('model')} ${modelName}` : ''}  ${fmt.dim('provider')} ${providerName}  ${fmt.dim('trials')} ${trials}${parallel > 1 ? `  ${fmt.dim('parallel')} ${parallel}` : ''}`);
+            const label = modelLabel(agentName, requestedModel);
+            console.log(`    ${fmt.dim('agent')} ${agentName}${label ? `  ${fmt.dim('model')} ${label}` : ''}  ${fmt.dim('provider')} ${providerName}  ${fmt.dim('trials')} ${trials}${parallel > 1 ? `  ${fmt.dim('parallel')} ${parallel}` : ''}`);
             console.log();
 
             try {

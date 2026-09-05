@@ -14,7 +14,7 @@ vi.mock('fs-extra', () => ({
 
 import * as fs from 'fs-extra';
 import { ResolvedTask } from '../src/core/config.types';
-import { prepareTempTaskDir } from '../src/commands/run';
+import { prepareTempTaskDir, modelLabel } from '../src/commands/run';
 
 // TaskConfig type for testing (not exported from types)
 interface TaskConfig {
@@ -285,5 +285,23 @@ describe('prepareTempTaskDir', () => {
     const dockerfileCall = mockWriteFile.mock.calls.find(c => c[0] === path.join('/tmp/task', 'environment', 'Dockerfile'));
     expect(dockerfileCall).toBeDefined();
     expect(dockerfileCall![1]).toContain('COPY main.ts app/main.ts');
+  });
+});
+
+describe('modelLabel', () => {
+  it('shows the pinned model for a model-aware agent', () => {
+    expect(modelLabel('claude', 'opus')).toBe('opus');
+  });
+
+  it('falls back to "default" when a model-aware agent got no --model', () => {
+    expect(modelLabel('claude', undefined)).toBe('default');
+    expect(modelLabel('gemini', undefined)).toBe('default');
+    expect(modelLabel('codex', undefined)).toBe('default');
+    expect(modelLabel('opencode', undefined)).toBe('default');
+  });
+
+  it('shows nothing for an agent with no model concept, even if one was requested', () => {
+    expect(modelLabel('command', 'opus')).toBeUndefined();
+    expect(modelLabel('acp', undefined)).toBeUndefined();
   });
 });
